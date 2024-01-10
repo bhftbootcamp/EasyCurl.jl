@@ -7,4 +7,3 @@ separate_kwargs_with_semicolon = false # Whether to separate keyword arguments w
 join_lines_based_on_source = false     # Whether to join lines based on source code instead of formatting rules
 whitespace_in_kwargs = true            # Whether to include whitespace around keyword argument separators
 remove_extra_newlines = true           # Whether to remove extra newlines in code
- 

@@ -1,18 +1,18 @@
-using cURL
+using EasyCurl
 using Documenter
 
-DocMeta.setdocmeta!(cURL, :DocTestSetup, :(using cURL); recursive = true)
+DocMeta.setdocmeta!(EasyCurl, :DocTestSetup, :(using EasyCurl); recursive = true)
 
 makedocs(;
-    modules = [cURL],
-    repo = "https://github.com/bhftbootcamp/cURL.jl/blob/{commit}{path}#{line}",
-    sitename = "cURL.jl",
+    modules = [EasyCurl],
+    repo = "https://github.com/bhftbootcamp/EasyCurl.jl/blob/{commit}{path}#{line}",
+    sitename = "EasyCurl.jl",
     format = Documenter.HTML(;
         prettyurls = get(ENV, "CI", "false") == "true",
-        canonical = "https://bhftbootcamp.github.io/cURL.jl",
+        canonical = "https://bhftbootcamp.github.io/EasyCurl.jl",
         edit_link = "master",
         assets = String["assets/favicon.ico"],
-        repolink = "https://github.com/bhftbootcamp/cURL.jl.git",
+        repolink = "https://github.com/bhftbootcamp/EasyCurl.jl.git",
     ),
     pages = [
         "Home" => "index.md",
@@ -21,4 +21,4 @@ makedocs(;
     ],
 )
 
-deploydocs(; repo = "github.com/bhftbootcamp/cURL.jl", devbranch = "master")
+deploydocs(; repo = "github.com/bhftbootcamp/EasyCurl.jl", devbranch = "master")

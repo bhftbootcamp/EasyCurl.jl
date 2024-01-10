@@ -1,33 +1,33 @@
-![cURL.jl Logo](docs/src/assets/readme_logo.svg)
+![EasyCurl.jl Logo](docs/src/assets/readme_logo.svg)
 
-# cURL.jl
+# EasyCurl.jl
 
-[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://bhftbootcamp.github.io/cURL.jl/stable)
-[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://bhftbootcamp.github.io/cURL.jl/dev)
-[![Build Status](https://github.com/bhftbootcamp/cURL.jl/actions/workflows/CI.yml/badge.svg?branch=master)](https://github.com/bhftbootcamp/cURL.jl/actions/workflows/CI.yml?query=branch%3Amain)
-[![Coverage](https://codecov.io/gh/bhftbootcamp/cURL.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/bhftbootcamp/cURL.jl)
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://bhftbootcamp.github.io/EasyCurl.jl/stable)
+[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://bhftbootcamp.github.io/EasyCurl.jl/dev)
+[![Build Status](https://github.com/bhftbootcamp/EasyCurl.jl/actions/workflows/CI.yml/badge.svg?branch=master)](https://github.com/bhftbootcamp/EasyCurl.jl/actions/workflows/CI.yml?query=branch%3Amain)
+[![Coverage](https://codecov.io/gh/bhftbootcamp/EasyCurl.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/bhftbootcamp/EasyCurl.jl)
 
-cURL is a lightweight Julia package that provides a user-friendly wrapper for the libcurl C library, for making HTTP requests. It is useful for sending HTTP requests, especially when dealing with RESTful APIs.
+EasyCurl is a lightweight Julia package that provides a user-friendly wrapper for the libcurl C library, for making HTTP requests. It is useful for sending HTTP requests, especially when dealing with RESTful APIs.
 
 ## Installation
 
-To install cURL, simply use the Julia package manager:
+To install EasyCurl, simply use the Julia package manager:
 
 ```julia
-] add cURL
+] add EasyCurl
 ```
 
 ## Usage
 
-Here is an example usage of cURL:
+Here is an example usage of EasyCurl:
 
 In the example, a POST request is sent to http://httpbin.org/post using the `en0` network interface
 
 ```julia
-using cURL
+using EasyCurl
 
 headers = Pair{String,String}[
-    "User-Agent" => "cURL.jl",
+    "User-Agent" => "EasyCurl.jl",
     "Content-Type" => "application/json"
 ]
 
@@ -50,7 +50,7 @@ julia> String(curl_body(response))
     "Accept": "*/*",
     "Content-Type": "application/json",
     "Accept-Encoding": "gzip",
-    "User-Agent": "cURL.jl"
+    "User-Agent": "EasyCurl.jl"
   },
   "json": {
     "data": "hi"
@@ -69,10 +69,10 @@ julia> String(curl_body(response))
 For HEAD, GET, POST, PUT, and PATCH requests, a similar structure is used to invoke the `curl_request` function with the appropriate HTTP method specified
 
 ```julia
-using cURL
+using EasyCurl
 
 headers = [
-    "User-Agent" => "cURL.jl",
+    "User-Agent" => "EasyCurl.jl",
     "Content-Type" => "application/json"
 ]
 
@@ -100,20 +100,20 @@ julia> curl_request("PATCH", "http://httpbin.org/patch", headers = headers,
 URL encoding and decoding
 
 ```julia
-using cURL
+using EasyCurl
 
 str_url = "[curl]"
 
-julia> cURL.urlencode(str_url)
+julia> EasyCurl.urlencode(str_url)
 "%5Bcurl%5D"
 
-julia> cURL.urldecode(curl_urlencode(str_url))
+julia> EasyCurl.urldecode(curl_urlencode(str_url))
 "[curl]"
 ```
 
-### Using a proxy with cURL
+### Using a proxy with EasyCurl
 
-To use a proxy for all your HTTP and HTTPS requests in `cURL`, you can set the following environment variables:
+To use a proxy for all your HTTP and HTTPS requests in `EasyCurl`, you can set the following environment variables:
 
 - `all_proxy`: Proxy for all protocols
 - `http_proxy`: Proxy for HTTP requests
@@ -141,4 +141,4 @@ julia> curl_request("GET", "http://httpbin.org/get",
 ```
 
 ## Contributing
-Contributions to cURL are welcome! If you encounter a bug, have a feature request, or would like to contribute code, please open an issue or a pull request on GitHub.
+Contributions to EasyCurl are welcome! If you encounter a bug, have a feature request, or would like to contribute code, please open an issue or a pull request on GitHub.

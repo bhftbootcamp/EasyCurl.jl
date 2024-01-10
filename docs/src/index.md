@@ -1,16 +1,16 @@
-# cURL.jl
+# EasyCurl.jl
 
-cURL is a lightweight Julia package that provides a user-friendly wrapper for the libcurl C library, for making HTTP requests. It is useful for sending HTTP requests, especially when dealing with RESTful APIs.
+EasyCurl is a lightweight Julia package that provides a user-friendly wrapper for the libcurl C library, for making HTTP requests. It is useful for sending HTTP requests, especially when dealing with RESTful APIs.
 
 ## Quickstart
 
 In the example, a POST request is sent to http://httpbin.org/post using the `0.0.0.0` network interface.
 
 ```julia
-using cURL
+using EasyCurl
 
 headers = Pair{String,String}[
-    "User-Agent" => "cURL.jl",
+    "User-Agent" => "EasyCurl.jl",
     "Content-Type" => "application/json"
 ]
 

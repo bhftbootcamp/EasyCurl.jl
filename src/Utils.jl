@@ -1,14 +1,14 @@
 # Utils
 
 """
-    cURL.urlencode(s::AbstractString)
+    EasyCurl.urlencode(s::AbstractString)
 
 Encode a string `s` into URI using only the US-ASCII characters legal within a URI.
 
 ## Examples
 
 ```julia-repl
-julia> cURL.urlencode("[curl]")
+julia> EasyCurl.urlencode("[curl]")
 "%5Bcurl%5D"
 ```
 """
@@ -41,14 +41,14 @@ function urlencode_query_params(params::AbstractDict{String,T}) where {T<:Any}
 end
 
 """
-    cURL.urldecode(s::AbstractString)
+    EasyCurl.urldecode(s::AbstractString)
 
 Decode an encoded URI string `s` back to normal string.
 
 ## Examples
 
 ```julia-repl
-julia> cURL.urldecode("%5Bcurl%5D")
+julia> EasyCurl.urldecode("%5Bcurl%5D")
 "[curl]"
 ```
 """
@@ -64,7 +64,7 @@ function urldecode_query(curl, s::AbstractString)
 end
 
 """
-    cURL.joinurl(basepart::AbstractString, parts::AbstractString...)::String
+    EasyCurl.joinurl(basepart::AbstractString, parts::AbstractString...)::String
 
 Construct a URL by concatenating a base part with one or more path segments. This function
 ensures that each segment is separated by a single forward slash (`/`), regardless of whether
@@ -73,10 +73,10 @@ the `basepart` or `parts` already contain slashes at their boundaries.
 ## Examples
 
 ```julia-repl
-julia> cURL.joinurl("http://example.com", "path")
+julia> EasyCurl.joinurl("http://example.com", "path")
 "http://example.com/path"
 
-julia> cURL.joinurl("http://example.com/", "/path/to/resource")
+julia> EasyCurl.joinurl("http://example.com/", "/path/to/resource")
 "http://example.com/path/to/resource"
 ```
 """

@@ -71,6 +71,6 @@ jobs:
         shell: julia --project=docs --color=yes {0}
         run: |
           using Documenter: DocMeta, doctest
-          using cURL
-          DocMeta.setdocmeta!(cURL, :DocTestSetup, :(using cURL); recursive=true)
-          doctest(cURL)
+          using EasyCurl
+          DocMeta.setdocmeta!(EasyCurl, :DocTestSetup, :(using EasyCurl); recursive=true)
+          doctest(EasyCurl)
