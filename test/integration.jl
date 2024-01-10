@@ -1,7 +1,7 @@
 # test/integration
 
 const headers = [
-    "User-Agent" => "cURL.jl",
+    "User-Agent" => "Curl.jl",
     "Content-Type" => "application/json"
 ]
 
@@ -9,7 +9,7 @@ const query = Dict{String,Any}(
     "echo" => "你好嗎"
 )
 
-const payload = cURL.urlencode_query_params(Dict{String,Any}(
+const payload = Curl.urlencode_query_params(Dict{String,Any}(
     "echo" => "hello"
 ))
 
@@ -17,7 +17,7 @@ const payload = cURL.urlencode_query_params(Dict{String,Any}(
     # Couldn't resolve host name
 
     @testset "Nonexistent host error" begin
-        @test_throws "cURLError: Couldn't resolve host name" cURL.get(
+        @test_throws "CurlError: Couldn't resolve host name" Curl.get(
             "https://bar-foo.foo/get",
             headers = headers,
             query = query,
@@ -27,7 +27,7 @@ const payload = cURL.urlencode_query_params(Dict{String,Any}(
 
     # GET request test
     @testset "GET request" begin
-        response = cURL.get("httpbin.org/get", headers = headers, query = query, read_timeout = 30)
+        response = Curl.get("httpbin.org/get", headers = headers, query = query, read_timeout = 30)
         @test response.status == 200
 
         body = JSON.parse(String(response.body))
@@ -37,14 +37,14 @@ const payload = cURL.urlencode_query_params(Dict{String,Any}(
 
     # HEAD request test
     @testset "HEAD request" begin
-        response = cURL.head("httpbin.org/get", headers = headers, query = query, read_timeout = 30)
+        response = Curl.head("httpbin.org/get", headers = headers, query = query, read_timeout = 30)
         @test response.status == 200
         @test isempty(response.body)
     end
 
     # POST request test
     @testset "POST request" begin
-        response = cURL.post("httpbin.org/post", headers = headers, query = query, body = payload, read_timeout = 30)
+        response = Curl.post("httpbin.org/post", headers = headers, query = query, body = payload, read_timeout = 30)
         @test response.status == 200
 
         body = JSON.parse(String(response.body))
@@ -54,7 +54,7 @@ const payload = cURL.urlencode_query_params(Dict{String,Any}(
     # PUT request test
     @testset "PUT request" begin
         response =
-            cURL.put("httpbin.org/put", headers = headers, query = query, body = payload, read_timeout = 30)
+            Curl.put("httpbin.org/put", headers = headers, query = query, body = payload, read_timeout = 30)
         @test response.status == 200
 
         body = JSON.parse(String(response.body))
@@ -64,7 +64,7 @@ const payload = cURL.urlencode_query_params(Dict{String,Any}(
     # PATCH request test
     @testset "PATCH request" begin
         response =
-            cURL.patch("httpbin.org/patch", headers = headers, query = query, body = payload, read_timeout = 30)
+            Curl.patch("httpbin.org/patch", headers = headers, query = query, body = payload, read_timeout = 30)
         @test response.status == 200
 
         body = JSON.parse(String(response.body))
@@ -73,7 +73,7 @@ const payload = cURL.urlencode_query_params(Dict{String,Any}(
 
     # DELETE request test
     @testset "DELETE request" begin
-        response = cURL.delete("httpbin.org/delete", headers = headers, query = query, body = payload, read_timeout = 30)
+        response = Curl.delete("httpbin.org/delete", headers = headers, query = query, body = payload, read_timeout = 30)
         @test response.status == 200
 
         body = JSON.parse(String(response.body))
@@ -101,16 +101,16 @@ end
 
     sleep(2)
 
-    @test_throws "cURLError: Failed binding local connection end" cURL.get(
+    @test_throws "CurlError: Failed binding local connection end" Curl.get(
         "http://127.0.0.1:1234",
-        headers = ["User-Agent" => "cURL.jl"],
+        headers = ["User-Agent" => "Curl.jl"],
         interface = "10.10.10.10",
         read_timeout = 30
     )
 
-    response = cURL.get(
+    response = Curl.get(
         "http://127.0.0.1:1234",
-        headers = ["User-Agent" => "cURL.jl"],
+        headers = ["User-Agent" => "Curl.jl"],
         interface = "0.0.0.0",
         read_timeout = 30,
         retries = 10,

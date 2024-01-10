@@ -1,4 +1,4 @@
-module cURL
+module Curl
 
 export curl_request,
     curl_get,
@@ -23,11 +23,11 @@ const DEFAULT_READ_TIMEOUT = 300  # seconds
 include("Static.jl")
 include("Utils.jl")
 
-struct cURLError <: Exception
+struct CurlError <: Exception
     message::String
 end
 
-Base.show(io::IO, e::cURLError) = print(io, "cURLError: ", e.message)
+Base.show(io::IO, e::CurlError) = print(io, "CurlError: ", e.message)
 
 abstract type HttpMessage end
 
@@ -63,7 +63,7 @@ headers(x::CurlResponse) = parse_headers(String(take!(x.h_data)))
 body(x::CurlResponse) = take!(x.b_data)
 
 """
-    cURL.Response(x::CurlResponse)
+    Curl.Response(x::CurlResponse)
 
 Represents an HTTP response object that can be received from a `CurlResponse`.
 
@@ -90,7 +90,7 @@ end
 """
     curl_status(x::Response) -> Int64
 
-Extracts the HTTP status code from a [`cURL.Response`](@ref) object.
+Extracts the HTTP status code from a [`Curl.Response`](@ref) object.
 """
 curl_status(x::Response) = status(x)
 status(x::Response) = x.status
@@ -98,7 +98,7 @@ status(x::Response) = x.status
 """
     curl_request_time(x::Response) -> Float64
 
-Extracts the request time from a [`cURL.Response`](@ref) object.
+Extracts the request time from a [`Curl.Response`](@ref) object.
 """
 curl_request_time(x::Response) = request_time(x)
 request_time(x::Response) = x.request_time
@@ -106,7 +106,7 @@ request_time(x::Response) = x.request_time
 """
     curl_headers(x::Response) -> Vector{Pair{String,String}}
 
-Parses the HTTP headers from a [`cURL.Response`](@ref) object.
+Parses the HTTP headers from a [`Curl.Response`](@ref) object.
 """
 curl_headers(x::Response) = headers(x)
 headers(x::Response) = x.headers
@@ -114,7 +114,7 @@ headers(x::Response) = x.headers
 """
     curl_body(x::Response) -> Vector{UInt8}
 
-Extracts the response body from a [`cURL.Response`](@ref) object.
+Extracts the response body from a [`Curl.Response`](@ref) object.
 """
 curl_body(x::Response) = body(x)
 body(x::Response) = x.body
@@ -122,7 +122,7 @@ body(x::Response) = x.body
 """
     curl_iserror(x::Response) -> Bool
 
-Check that [`cURL.Response`](@ref) have an error status
+Check that [`Curl.Response`](@ref) have an error status
 """
 curl_iserror(x::Response) = iserror(x)
 iserror(x::Response) = x.status >= 300
@@ -170,9 +170,9 @@ Represents an HTTP request object.
 - `proxy::Union{String, Nothing}`: The proxy server to use (or `nothing` for no proxy).
 - `accept_encoding::String`: The accepted encoding for the response (e.g., "gzip").
 - `ssl_verifypeer::Bool`: Whether to verify SSL certificates.
-- `verbose::Bool`: Enables verbose output from cURL for debugging.
-- `rq_curl::Ptr{CURL}`: A pointer to a cURL handle for the request.
-- `rq_multi::Ptr{CURL}`: A pointer to a cURL multi handle for the request.
+- `verbose::Bool`: Enables verbose output from Curl for debugging.
+- `rq_curl::Ptr{CURL}`: A pointer to a Curl handle for the request.
+- `rq_multi::Ptr{CURL}`: A pointer to a Curl multi handle for the request.
 - `response::CurlResponse`: The HTTP response associated with this request.
 """
 struct Request <: HttpMessage
@@ -231,7 +231,7 @@ function curl_setup_rq(request::Request)
     curl_easy_setopt(request.rq_curl, CURLOPT_INTERFACE, something(request.interface, C_NULL))
     curl_easy_setopt(request.rq_curl, CURLOPT_ACCEPT_ENCODING, request.accept_encoding)
     curl_easy_setopt(request.rq_curl, CURLOPT_SSL_VERIFYPEER, request.ssl_verifypeer)
-    curl_easy_setopt(request.rq_curl, CURLOPT_USERAGENT, "cURL/1.2.0")
+    curl_easy_setopt(request.rq_curl, CURLOPT_USERAGENT, "Curl/1.2.0")
     curl_easy_setopt(request.rq_curl, CURLOPT_PROXY, something(request.proxy, C_NULL))
     curl_easy_setopt(request.rq_curl, CURLOPT_VERBOSE, request.verbose)
 
@@ -271,7 +271,7 @@ function curl_rq_handle(request::Request)
             multi_perf = curl_multi_perform(request.rq_multi, request.response.curl_active)
             rx_count_after = request.response.rx_count
             if multi_perf != CURLE_OK
-                throw(cURLError(unsafe_string(curl_multi_strerror(multi_perf))))
+                throw(CurlError(unsafe_string(curl_multi_strerror(multi_perf))))
             end
             if !(rx_count_after > rx_count_before)
                 sleep(0.001)
@@ -287,7 +287,7 @@ function curl_rq_handle(request::Request)
             msg.msg != CURLMSG_DONE && continue
             msg_data = convert(Int64, msg.data)
             if msg_data != CURLE_OK
-                throw(cURLError(unsafe_string(curl_easy_strerror(msg_data))))
+                throw(CurlError(unsafe_string(curl_easy_strerror(msg_data))))
             end
         end
 
@@ -369,7 +369,7 @@ function curl_rq_handle(::Val{:DELETE}, request::Request)
 end
 
 function curl_rq_handle(::Val{x}, request::Request) where {x}
-    return throw(cURLError("`$(x)` method not supported"))
+    return throw(CurlError("`$(x)` method not supported"))
 end
 
 #__ request
@@ -388,9 +388,9 @@ function rq_url(url::AbstractString, query)
 end
 
 """
-    curl_request(method::AbstractString, url::AbstractString; kw...) -> cURL.Response
+    curl_request(method::AbstractString, url::AbstractString; kw...) -> Curl.Response
 
-Send a `url` HTTP Request using as `method` one of `"GET"`, `"POST"`, etc. and return a [`cURL.Response`](@ref) object.
+Send a `url` HTTP Request using as `method` one of `"GET"`, `"POST"`, etc. and return a [`Curl.Response`](@ref) object.
 
 ## Keyword arguments
 
@@ -404,14 +404,14 @@ Send a `url` HTTP Request using as `method` one of `"GET"`, `"POST"`, etc. and r
 - `retries = 1`: The number of times to retry the request if an error occurs.
 - `proxy = nothing`: Which proxy to use for the request.
 - `accept_encoding = "gzip"`: Encoding to accept.
-- `verbose::Bool = false`: Enables verbose output from cURL for debugging.
+- `verbose::Bool = false`: Enables verbose output from Curl for debugging.
 - `ssl_verifypeer = true`: Whether peer need to be verified.
 
 ## Examples
 
 ```julia-repl
 julia> headers = Pair{String,String}[
-    "User-Agent" => "cURL.jl",
+    "User-Agent" => "Curl.jl",
     "Content-Type" => "application/json"
 ]
 
@@ -430,7 +430,7 @@ julia> curl_body(response) |> String |> print
     "Accept": "*/*",
     "Content-Type": "application/json",
     "Accept-Encoding": "gzip",
-    "User-Agent": "cURL.jl"
+    "User-Agent": "Curl.jl"
   },
   "json": {
     "data": "hi"
@@ -501,7 +501,7 @@ function request(
 end
 
 """
-    curl_get(url::AbstractString; kw...) -> cURL.Response
+    curl_get(url::AbstractString; kw...) -> Curl.Response
 
 Shortcut for [`curl_request`](@ref) function, work similar to `curl_request("GET", url; kw...)`.
 
@@ -509,7 +509,7 @@ Shortcut for [`curl_request`](@ref) function, work similar to `curl_request("GET
 
 ```julia-repl
 julia> headers = Pair{String,String}[
-    "User-Agent" => "cURL.jl",
+    "User-Agent" => "Curl.jl",
     "Content-Type" => "application/json"
 ]
 
@@ -529,7 +529,7 @@ julia> curl_body(response) |> String |> print
     "Accept-Encoding": "gzip",
     "Content-Type": "application/json",
     "Host": "httpbin.org",
-    "User-Agent": "cURL.jl",
+    "User-Agent": "Curl.jl",
     "X-Amzn-Trace-Id": "Root=1-6589e259-24815d6d62da962a06fc7edf"
   },
   "origin": "100.250.50.140",
@@ -541,7 +541,7 @@ curl_get(url; kw...) = get(url; kw...)
 Base.get(url; kw...)::Response = request("GET", url; kw...)
 
 """
-    curl_head(url::AbstractString; kw...) -> cURL.Response
+    curl_head(url::AbstractString; kw...) -> Curl.Response
 
 Shortcut for [`curl_request`](@ref) function, work similar to `curl_request("HEAD", url; kw...)`.
 
@@ -549,7 +549,7 @@ Shortcut for [`curl_request`](@ref) function, work similar to `curl_request("HEA
 
 ```julia-repl
 julia> headers = Pair{String,String}[
-    "User-Agent" => "cURL.jl",
+    "User-Agent" => "Curl.jl",
     "Content-Type" => "application/json"
 ]
 
@@ -567,7 +567,7 @@ curl_head(url; kw...) = head(url; kw...)
 head(url; kw...)::Response = request("HEAD", url; kw...)
 
 """
-    curl_post(url::AbstractString; kw...) -> cURL.Response
+    curl_post(url::AbstractString; kw...) -> Curl.Response
 
 Shortcut for [`curl_request`](@ref) function, work similar to `curl_request("POST", url; kw...)`.
 
@@ -575,7 +575,7 @@ Shortcut for [`curl_request`](@ref) function, work similar to `curl_request("POS
 
 ```julia-repl
 julia> headers = Pair{String,String}[
-    "User-Agent" => "cURL.jl",
+    "User-Agent" => "Curl.jl",
     "Content-Type" => "application/json"
 ]
 
@@ -599,7 +599,7 @@ julia> curl_body(response) |> String |> print
     "Content-Length": "13",
     "Content-Type": "application/json",
     "Host": "httpbin.org",
-    "User-Agent": "cURL.jl",
+    "User-Agent": "Curl.jl",
     "X-Amzn-Trace-Id": "Root=1-6589e32c-7f09b85d56e11aea59cde1d6"
   },
   "json": {
@@ -614,7 +614,7 @@ curl_post(url; kw...) = post(url; kw...)
 post(url; kw...)::Response = request("POST", url; kw...)
 
 """
-    curl_put(url::AbstractString; kw...) -> cURL.Response
+    curl_put(url::AbstractString; kw...) -> Curl.Response
 
 Shortcut for [`curl_request`](@ref) function, work similar to `curl_request("PUT", url; kw...)`.
 
@@ -622,7 +622,7 @@ Shortcut for [`curl_request`](@ref) function, work similar to `curl_request("PUT
 
 ```julia-repl
 julia> headers = Pair{String,String}[
-    "User-Agent" => "cURL.jl",
+    "User-Agent" => "Curl.jl",
     "Content-Type" => "application/json"
 ]
 
@@ -646,7 +646,7 @@ julia> curl_body(response) |> String |> print
     "Content-Length": "13",
     "Content-Type": "application/json",
     "Host": "httpbin.org",
-    "User-Agent": "cURL.jl",
+    "User-Agent": "Curl.jl",
     "X-Amzn-Trace-Id": "Root=1-6589e3b0-58cdde84399ad8be30eb4e46"
   },
   "json": {
@@ -661,7 +661,7 @@ curl_put(url; kw...) = put(url; kw...)
 put(url; kw...)::Response = request("PUT", url; kw...)
 
 """
-    curl_patch(url::AbstractString; kw...) -> cURL.Response
+    curl_patch(url::AbstractString; kw...) -> Curl.Response
 
 Shortcut for [`curl_request`](@ref) function, work similar to `curl_request("PATCH", url; kw...)`.
 
@@ -669,7 +669,7 @@ Shortcut for [`curl_request`](@ref) function, work similar to `curl_request("PAT
 
 ```julia-repl
 julia> headers = Pair{String,String}[
-    "User-Agent" => "cURL.jl",
+    "User-Agent" => "Curl.jl",
     "Content-Type" => "application/json"
 ]
 
@@ -693,7 +693,7 @@ julia> curl_body(response) |> String |> print
     "Content-Length": "13",
     "Content-Type": "application/json",
     "Host": "httpbin.org",
-    "User-Agent": "cURL.jl",
+    "User-Agent": "Curl.jl",
     "X-Amzn-Trace-Id": "Root=1-6589e410-33f8cb5a31db9fba6c0a746f"
   },
   "json": {
@@ -708,7 +708,7 @@ curl_patch(url; kw...) = patch(url; kw...)
 patch(url; kw...)::Response = request("PATCH", url; kw...)
 
 """
-    curl_delete(url::AbstractString; kw...) -> cURL.Response
+    curl_delete(url::AbstractString; kw...) -> Curl.Response
 
 Shortcut for [`curl_request`](@ref) function, work similar to `curl_request("DELETE", url; kw...)`.
 
@@ -716,7 +716,7 @@ Shortcut for [`curl_request`](@ref) function, work similar to `curl_request("DEL
 
 ```julia-repl
 julia> headers = Pair{String,String}[
-    "User-Agent" => "cURL.jl",
+    "User-Agent" => "Curl.jl",
     "Content-Type" => "application/json"
 ]
 
@@ -740,7 +740,7 @@ julia> curl_body(response) |> String |> print
     "Content-Length": "13",
     "Content-Type": "application/json",
     "Host": "httpbin.org",
-    "User-Agent": "cURL.jl",
+    "User-Agent": "Curl.jl",
     "X-Amzn-Trace-Id": "Root=1-6589e5f7-1c1ff2407f567ff17786576d"
   },
   "json": {
