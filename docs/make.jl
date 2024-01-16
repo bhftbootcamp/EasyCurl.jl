@@ -18,6 +18,7 @@ makedocs(;
         "Home" => "index.md",
         "API Reference" => "pages/api_reference.md",
         "Constants" => "pages/constants.md",
+        "For Developers" => "pages/error_handling.md",
     ],
 )
 

@@ -17,7 +17,7 @@ const payload = EasyCurl.urlencode_query_params(Dict{String,Any}(
     # Couldn't resolve host name
 
     @testset "Nonexistent host error" begin
-        @test_throws "EasyCurlError: Couldn't resolve host name" EasyCurl.get(
+        @test_throws "EasyCurlError{6}(Couldn't resolve host name)" EasyCurl.get(
             "https://bar-foo.foo/get",
             headers = headers,
             query = query,
@@ -101,7 +101,7 @@ end
 
     sleep(2)
 
-    @test_throws "EasyCurlError: Failed binding local connection end" EasyCurl.get(
+    @test_throws "EasyCurlError{45}(Failed binding local connection end)" EasyCurl.get(
         "http://127.0.0.1:1234",
         headers = ["User-Agent" => "EasyCurl.jl"],
         interface = "10.10.10.10",

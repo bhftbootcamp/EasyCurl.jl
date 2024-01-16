@@ -14,7 +14,8 @@ export curl_body,
     curl_request_time,
     curl_iserror
 
-export EasyCurlError
+export EasyCurlError,
+    EasyCurlStatusError
 
 using LibCURL
 
@@ -25,11 +26,38 @@ const DEFAULT_READ_TIMEOUT = 300  # seconds
 include("Static.jl")
 include("Utils.jl")
 
-struct EasyCurlError <: Exception
+"""
+    EasyCurlError{code} <: Exception
+
+Type that is returned if [`curl_request`](@ref) fails on the libcurl side.
+
+## Fields
+- `code::UInt32`: The error code (see [libcurl error codes](https://curl.se/libcurl/c/libcurl-errors.html)).
+- `message::String`: The error message.
+
+## Examples
+```julia-repl
+julia> curl_request("GET", "http://httpbin.org/status/400", interface = "9.9.9.9")
+ERROR: EasyCurlError{45}(Failed binding local connection end)
+[...]
+
+julia> curl_request("GET", "http://httpbin.org/status/400", interface = "")
+ERROR: EasyCurlError{7}(Couldn't connect to server)
+[...]
+```
+"""
+struct EasyCurlError{code} <: Exception
+    code::UInt32
     message::String
+
+    function EasyCurlError(code::UInt32, message::String)
+        return new{code}(code, message)
+    end
 end
 
-Base.show(io::IO, e::EasyCurlError) = print(io, "EasyCurlError: ", e.message)
+function Base.showerror(io::IO, e::EasyCurlError)
+    return print(io, "EasyCurlError{$(e.code)}(", e.message, ")")
+end
 
 const Header = Pair{String,String}
 
@@ -192,16 +220,43 @@ struct Request
     response::CurlResponse
 end
 
-struct StatusError <: Exception
+"""
+    EasyCurlStatusError{code} <: Exception
+
+Type that is returned if [`curl_request`](@ref) fails on the HTTP side.
+
+## Fields
+- `code::Int64`: The HTTP error code (see [`HTTP_STATUS_CODES`](@ref)).
+- `message::String`: The error message.
+- `response::Response`: The HTTP response object.
+
+## Examples
+```julia-repl
+julia> curl_request("GET", "http://httpbin.org/status/400", interface = "0.0.0.0")
+ERROR: EasyCurlStatusError{400}(BAD_REQUEST)
+[...]
+
+julia> curl_request("GET", "http://httpbin.org/status/404", interface = "0.0.0.0")
+ERROR: EasyCurlStatusError{404}(NOT_FOUND)
+[...]
+```
+"""
+struct EasyCurlStatusError{code} <: Exception
+    code::Int64
     message::String
     response::Response
 
-    function StatusError(x::Response)
-        return new(get(HTTP_STATUS_CODES, status(x), HTTP_STATUS_CODES[500]), x)
+    function EasyCurlStatusError(x::Response)
+        return new{status(x)}(status(x), get(HTTP_STATUS_CODES, status(x), HTTP_STATUS_CODES[500]), x)
     end
 end
 
-Base.show(io::IO, e::StatusError) = print(io, StatusError, "(", status(e.response), " ,", "\"", e.message, "\"", ")")
+function Base.showerror(io::IO, e::EasyCurlStatusError)
+    return print(io, "EasyCurlStatusError{$(e.code)}(", e.message, ")")
+end
+
+# Backward compatibility
+const StatusError = EasyCurlStatusError
 
 #__ libcurl
 
@@ -268,10 +323,10 @@ function curl_rq_handle(request::Request)
 
         while (request.response.curl_active[1] > 0)
             rx_count_before = request.response.rx_count
-            multi_perf = curl_multi_perform(request.rq_multi, request.response.curl_active)
+            curl_m_code = curl_multi_perform(request.rq_multi, request.response.curl_active)
             rx_count_after = request.response.rx_count
-            if multi_perf != CURLE_OK
-                throw(EasyCurlError(unsafe_string(curl_multi_strerror(multi_perf))))
+            if curl_m_code != CURLE_OK
+                throw(EasyCurlError(curl_m_code, unsafe_string(curl_multi_strerror(curl_m_code))))
             end
             if !(rx_count_after > rx_count_before)
                 sleep(0.001)
@@ -285,9 +340,9 @@ function curl_rq_handle(request::Request)
             msg = unsafe_load(ptr_msg)
             ptr_msg = curl_multi_info_read(request.rq_multi, msgs_in_queue)
             msg.msg != CURLMSG_DONE && continue
-            msg_data = convert(Int64, msg.data)
-            if msg_data != CURLE_OK
-                throw(EasyCurlError(unsafe_string(curl_easy_strerror(msg_data))))
+            curl_code = convert(UInt32, msg.data)
+            if curl_code != CURLE_OK
+                throw(EasyCurlError(curl_code, unsafe_string(curl_easy_strerror(curl_code))))
             end
         end
 
@@ -369,22 +424,7 @@ function curl_rq_handle(::Val{:DELETE}, request::Request)
 end
 
 function curl_rq_handle(::Val{x}, request::Request) where {x}
-    return throw(EasyCurlError("`$(x)` method not supported"))
-end
-
-#__ request
-
-to_query_decode(::Nothing) = ""
-to_query_decode(x::S) where {S<:AbstractString} = x
-to_query_decode(x::AbstractDict) = urlencode_query_params(x)
-
-to_bytes(::Nothing) = Vector{UInt8}()
-to_bytes(x::S) where {S<:AbstractString} = Vector{UInt8}(x)
-to_bytes(x::Vector{UInt8}) = x
-
-function rq_url(url::AbstractString, query)
-    kv = to_query_decode(query)
-    return isempty(kv) ? url : url * "?" * kv
+    return throw(EasyCurlError(405, "`$(x)` method not supported"))
 end
 
 """
@@ -466,11 +506,13 @@ function request(
     ssl_verifypeer::Bool = true,
     verbose::Bool = false,
 )
-    @label curl_request_retry
+    @label retry_request
+
+    rq_curl = curl_easy_init()
 
     req = Request(
         method,
-        rq_url(url, query),
+        rq_url(rq_curl, url, query),
         headers,
         to_bytes(body),
         connect_timeout,
@@ -480,7 +522,7 @@ function request(
         accept_encoding,
         ssl_verifypeer,
         verbose,
-        curl_easy_init(),
+        rq_curl,
         curl_multi_init(),
         CurlResponse(),
     )
@@ -489,13 +531,13 @@ function request(
         curl_rq_handle(Val(Symbol(req.method)), req)
         response = Response(req.response)
         if status_exception && iserror(response)
-            throw(StatusError(response))
+            throw(EasyCurlStatusError(response))
         end
         response
     catch e
         retries -= 1
         sleep(0.25)
-        retries >= 0 && @goto curl_request_retry
+        retries >= 0 && @goto retry_request
         rethrow(e)
     end
 end
