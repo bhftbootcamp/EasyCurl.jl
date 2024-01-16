@@ -13,10 +13,13 @@ julia> EasyCurl.urlencode("[curl]")
 ```
 """
 function urlencode(s::AbstractString)
-    return urlencode_query(curl_easy_init(), s)
+    curl = curl_easy_init()
+    esc_s = urlencode(curl, s)
+    curl_easy_cleanup(curl)
+    return esc_s
 end
 
-function urlencode_query(curl, s::AbstractString)
+function urlencode(curl, s::AbstractString)
     b_arr = curl_easy_escape(curl, s, sizeof(s))
     esc_s = unsafe_string(b_arr)
     curl_free(b_arr)
@@ -24,12 +27,19 @@ function urlencode_query(curl, s::AbstractString)
 end
 
 function urlencode_query_params(params::AbstractDict{String,T}) where {T<:Any}
+    curl = curl_easy_init()
+    esc_s = urlencode_query_params(curl, params)
+    curl_easy_cleanup(curl)
+    return esc_s
+end
+
+function urlencode_query_params(curl, params::AbstractDict{String,T}) where {T<:Any}
     str = ""
     for (k, v) in params
         if v !== ""
-            ep = urlencode(string(k)) * "=" * urlencode(string(v))
+            ep = urlencode(curl, string(k)) * "=" * urlencode(curl, string(v))
         else
-            ep = urlencode(string(k))
+            ep = urlencode(curl, string(k))
         end
         if str == ""
             str = ep
@@ -53,14 +63,17 @@ julia> EasyCurl.urldecode("%5Bcurl%5D")
 ```
 """
 function urldecode(s::AbstractString)
-    return urldecode_query(curl_easy_init(), s)
+    curl = curl_easy_init()
+    unesc_s = urldecode(curl, s)
+    curl_easy_cleanup(curl)
+    return unesc_s
 end
 
-function urldecode_query(curl, s::AbstractString)
+function urldecode(curl, s::AbstractString)
     b_arr = curl_easy_unescape(curl, s, 0, C_NULL)
-    esc_s = unsafe_string(b_arr)
+    unesc_s = unsafe_string(b_arr)
     curl_free(b_arr)
-    return esc_s
+    return unesc_s
 end
 
 """
@@ -97,3 +110,16 @@ function parse_headers(headers::AbstractString)
     end
     return result
 end
+
+to_query_decode(curl, ::Nothing) = ""
+to_query_decode(curl, x::S) where {S<:AbstractString} = x
+to_query_decode(curl, x::AbstractDict) = urlencode_query_params(curl, x)
+
+function rq_url(curl, url::AbstractString, query)
+    kv = to_query_decode(curl, query)
+    return isempty(kv) ? url : url * "?" * kv
+end
+
+to_bytes(::Nothing) = Vector{UInt8}()
+to_bytes(x::S) where {S<:AbstractString} = Vector{UInt8}(x)
+to_bytes(x::Vector{UInt8}) = x

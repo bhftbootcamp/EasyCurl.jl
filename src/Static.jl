@@ -1,150 +1,130 @@
 """
     HTTP_STATUS_CODES
 
-A dictionary that maps HTTP status codes to their corresponding message:
+A dictionary that maps HTTP status codes to their corresponding messages:
 
-- `100` - Continue
-- `101` - Switching Protocols
-- `102` - Processing
+- `100` - CONTINUE
+- `101` - SWITCHING\\_PROTOCOLS
+- `102` - PROCESSING
+- `103` - EARLY\\_HINTS
 - `200` - OK
-- `201` - Created
-- `202` - Accepted
-- `203` - Non-Authoritative Information
-- `204` - No Content
-- `205` - Reset Content
-- `206` - Partial Content
-- `207` - Multi-Status
-- `300` - Multiple Choices
-- `301` - Moved Permanently
-- `302` - Moved Temporarily
-- `303` - See Other
-- `304` - Not Modified
-- `305` - Use Proxy
-- `307` - Temporary Redirect
-- `400` - Bad Request
-- `401` - Unauthorized
-- `402` - Payment Required
-- `403` - Forbidden
-- `404` - Not Found
-- `405` - Method Not Allowed
-- `406` - Not Acceptable
-- `407` - Proxy Authentication Required
-- `408` - Request Time-out
-- `409` - Conflict
-- `410` - Gone
-- `411` - Length Required
-- `412` - Precondition Failed
-- `413` - Request Entity Too Large
-- `414` - Request-URI Too Large
-- `415` - Unsupported Media Type
-- `416` - Requested Range Not Satisfiable
-- `417` - Expectation Failed
-- `418` - I'm a teapot
-- `422` - Unprocessable Entity
-- `423` - Locked
-- `424` - Failed Dependency
-- `425` - Unordered Collection
-- `426` - Upgrade Required
-- `428` - Precondition Required
-- `429` - Too Many Requests
-- `431` - Request Header Fields Too Large
-- `440` - Login Timeout
-- `444` - nginx error: No Response
-- `495` - nginx error: SSL Certificate Error
-- `496` - nginx error: SSL Certificate Required
-- `497` - nginx error: HTTP -> HTTPS
-- `499` - nginx error or Antivirus intercepted request or ArcGIS error
-- `500` - Internal Server Error
-- `501` - Not Implemented
-- `502` - Bad Gateway
-- `503` - Service Unavailable
-- `504` - Gateway Time-out
-- `505` - HTTP Version Not Supported
-- `506` - Variant Also Negotiates
-- `507` - Insufficient Storage
-- `509` - Bandwidth Limit Exceeded
-- `510` - Not Extended
-- `511` - Network Authentication Required
-- `520` - CloudFlare Server Error: Unknown
-- `521` - CloudFlare Server Error: Connection Refused
-- `522` - CloudFlare Server Error: Connection Timeout
-- `523` - CloudFlare Server Error: Origin Server Unreachable
-- `524` - CloudFlare Server Error: Connection Timeout
-- `525` - CloudFlare Server Error: Connection Failed
-- `526` - CloudFlare Server Error: Invalid SSL Ceritificate
-- `527` - CloudFlare Server Error: Railgun Error
-- `530` - Site Frozen
+- `201` - CREATED
+- `202` - ACCEPTED
+- `203` - NON\\_AUTHORITATIVE\\_INFORMATION
+- `204` - NO\\_CONTENT
+- `205` - RESET\\_CONTENT
+- `206` - PARTIAL\\_CONTENT
+- `207` - MULTI\\_STATUS
+- `208` - ALREADY\\_REPORTED
+- `226` - IM\\_USED
+- `300` - MULTIPLE\\_CHOICES
+- `301` - MOVED\\_PERMANENTLY
+- `302` - FOUND
+- `303` - SEE\\_OTHER
+- `304` - NOT\\_MODIFIED
+- `307` - TEMPORARY\\_REDIRECT
+- `308` - PERMANENT\\_REDIRECT
+- `400` - BAD\\_REQUEST
+- `401` - UNAUTHORIZED
+- `402` - PAYMENT\\_REQUIRED
+- `403` - FORBIDDEN
+- `404` - NOT\\_FOUND
+- `405` - METHOD\\_NOT\\_ALLOWED
+- `406` - NOT\\_ACCEPTABLE
+- `407` - PROXY\\_AUTHENTICATION\\_REQUIRED
+- `408` - REQUEST\\_TIMEOUT
+- `409` - CONFLICT
+- `410` - GONE
+- `411` - LENGTH\\_REQUIRED
+- `412` - PRECONDITION\\_FAILED
+- `413` - PAYLOAD\\_TOO\\_LARGE
+- `414` - URI\\_TOO\\_LONG
+- `415` - UNSUPPORTED\\_MEDIA\\_TYPE
+- `416` - RANGE\\_NOT\\_SATISFIABLE
+- `417` - EXPECTATION\\_FAILED
+- `418` - IM\\_A\\_TEAPOT
+- `421` - MISDIRECTED\\_REQUEST
+- `422` - UNPROCESSABLE\\_ENTITY
+- `423` - LOCKED
+- `424` - FAILED\\_DEPENDENCY
+- `425` - TOO\\_EARLY
+- `426` - UPGRADE\\_REQUIRED
+- `428` - PRECONDITION\\_REQUIRED
+- `429` - TOO\\_MANY\\_REQUESTS
+- `431` - REQUEST\\_HEADER\\_FIELDS\\_TOO\\_LARGE
+- `451` - UNAVAILABLE\\_FOR\\_LEGAL\\_REASONS
+- `500` - INTERNAL\\_SERVER\\_ERROR
+- `501` - NOT\\_IMPLEMENTED
+- `502` - BAD\\_GATEWAY
+- `503` - SERVICE\\_UNAVAILABLE
+- `504` - GATEWAY\\_TIMEOUT
+- `505` - HTTP\\_VERSION\\_NOT\\_SUPPORTED
+- `506` - VARIANT\\_ALSO\\_NEGOTIATES
+- `507` - INSUFFICIENT\\_STORAGE
+- `508` - LOOP\\_DETECTED
+- `510` - NOT\\_EXTENDED
+- `511` - NETWORK\\_AUTHENTICATION\\_REQUIRED
 """
 const HTTP_STATUS_CODES = Dict{Int64,String}(
-    100 => "Continue",
-    101 => "Switching Protocols",
-    102 => "Processing",
+    100 => "CONTINUE",
+    101 => "SWITCHING_PROTOCOLS",
+    102 => "PROCESSING",
+    103 => "EARLY_HINTS",
     200 => "OK",
-    201 => "Created",
-    202 => "Accepted",
-    203 => "Non-Authoritative Information",
-    204 => "No Content",
-    205 => "Reset Content",
-    206 => "Partial Content",
-    207 => "Multi-Status",
-    300 => "Multiple Choices",
-    301 => "Moved Permanently",
-    302 => "Moved Temporarily",
-    303 => "See Other",
-    304 => "Not Modified",
-    305 => "Use Proxy",
-    307 => "Temporary Redirect",
-    400 => "Bad Request",
-    401 => "Unauthorized",
-    402 => "Payment Required",
-    403 => "Forbidden",
-    404 => "Not Found",
-    405 => "Method Not Allowed",
-    406 => "Not Acceptable",
-    407 => "Proxy Authentication Required",
-    408 => "Request Time-out",
-    409 => "Conflict",
-    410 => "Gone",
-    411 => "Length Required",
-    412 => "Precondition Failed",
-    413 => "Request Entity Too Large",
-    414 => "Request-URI Too Large",
-    415 => "Unsupported Media Type",
-    416 => "Requested Range Not Satisfiable",
-    417 => "Expectation Failed",
-    418 => "I'm a teapot",
-    422 => "Unprocessable Entity",
-    423 => "Locked",
-    424 => "Failed Dependency",
-    425 => "Unordered Collection",
-    426 => "Upgrade Required",
-    428 => "Precondition Required",
-    429 => "Too Many Requests",
-    431 => "Request Header Fields Too Large",
-    440 => "Login Timeout",
-    444 => "nginx error: No Response",
-    495 => "nginx error: SSL Certificate Error",
-    496 => "nginx error: SSL Certificate Required",
-    497 => "nginx error: HTTP -> HTTPS",
-    499 => "nginx error or Antivirus intercepted request or ArcGIS error",
-    500 => "Internal Server Error",
-    501 => "Not Implemented",
-    502 => "Bad Gateway",
-    503 => "Service Unavailable",
-    504 => "Gateway Time-out",
-    505 => "HTTP Version Not Supported",
-    506 => "Variant Also Negotiates",
-    507 => "Insufficient Storage",
-    509 => "Bandwidth Limit Exceeded",
-    510 => "Not Extended",
-    511 => "Network Authentication Required",
-    520 => "CloudFlare Server Error: Unknown",
-    521 => "CloudFlare Server Error: Connection Refused",
-    522 => "CloudFlare Server Error: Connection Timeout",
-    523 => "CloudFlare Server Error: Origin Server Unreachable",
-    524 => "CloudFlare Server Error: Connection Timeout",
-    525 => "CloudFlare Server Error: Connection Failed",
-    526 => "CloudFlare Server Error: Invalid SSL Ceritificate",
-    527 => "CloudFlare Server Error: Railgun Error",
-    530 => "Site Frozen",
+    201 => "CREATED",
+    202 => "ACCEPTED",
+    203 => "NON_AUTHORITATIVE_INFORMATION",
+    204 => "NO_CONTENT",
+    205 => "RESET_CONTENT",
+    206 => "PARTIAL_CONTENT",
+    207 => "MULTI_STATUS",
+    208 => "ALREADY_REPORTED",
+    226 => "IM_USED",
+    300 => "MULTIPLE_CHOICES",
+    301 => "MOVED_PERMANENTLY",
+    302 => "FOUND",
+    303 => "SEE_OTHER",
+    304 => "NOT_MODIFIED",
+    307 => "TEMPORARY_REDIRECT",
+    308 => "PERMANENT_REDIRECT",
+    400 => "BAD_REQUEST",
+    401 => "UNAUTHORIZED",
+    402 => "PAYMENT_REQUIRED",
+    403 => "FORBIDDEN",
+    404 => "NOT_FOUND",
+    405 => "METHOD_NOT_ALLOWED",
+    406 => "NOT_ACCEPTABLE",
+    407 => "PROXY_AUTHENTICATION_REQUIRED",
+    408 => "REQUEST_TIMEOUT",
+    409 => "CONFLICT",
+    410 => "GONE",
+    411 => "LENGTH_REQUIRED",
+    412 => "PRECONDITION_FAILED",
+    413 => "PAYLOAD_TOO_LARGE",
+    414 => "URI_TOO_LONG",
+    415 => "UNSUPPORTED_MEDIA_TYPE",
+    416 => "RANGE_NOT_SATISFIABLE",
+    417 => "EXPECTATION_FAILED",
+    418 => "IM_A_TEAPOT",
+    421 => "MISDIRECTED_REQUEST",
+    422 => "UNPROCESSABLE_ENTITY",
+    423 => "LOCKED",
+    424 => "FAILED_DEPENDENCY",
+    425 => "TOO_EARLY",
+    426 => "UPGRADE_REQUIRED",
+    428 => "PRECONDITION_REQUIRED",
+    429 => "TOO_MANY_REQUESTS",
+    431 => "REQUEST_HEADER_FIELDS_TOO_LARGE",
+    451 => "UNAVAILABLE_FOR_LEGAL_REASONS",
+    500 => "INTERNAL_SERVER_ERROR",
+    501 => "NOT_IMPLEMENTED",
+    502 => "BAD_GATEWAY",
+    503 => "SERVICE_UNAVAILABLE",
+    504 => "GATEWAY_TIMEOUT",
+    505 => "HTTP_VERSION_NOT_SUPPORTED",
+    506 => "VARIANT_ALSO_NEGOTIATES",
+    507 => "INSUFFICIENT_STORAGE",
+    508 => "LOOP_DETECTED",
+    510 => "NOT_EXTENDED",
+    511 => "NETWORK_AUTHENTICATION_REQUIRED"
 )
