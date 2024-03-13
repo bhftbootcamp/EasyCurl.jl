@@ -6,6 +6,7 @@
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://bhftbootcamp.github.io/EasyCurl.jl/dev)
 [![Build Status](https://github.com/bhftbootcamp/EasyCurl.jl/actions/workflows/CI.yml/badge.svg?branch=master)](https://github.com/bhftbootcamp/EasyCurl.jl/actions/workflows/CI.yml?query=branch%3Amain)
 [![Coverage](https://codecov.io/gh/bhftbootcamp/EasyCurl.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/bhftbootcamp/EasyCurl.jl)
+[![Registry](https://img.shields.io/badge/registry-General-4063d8)](https://github.com/JuliaRegistries/General)
 
 EasyCurl is a lightweight Julia package that provides a user-friendly wrapper for the libcurl C library, for making HTTP requests. It is useful for sending HTTP requests, especially when dealing with RESTful APIs.
 
