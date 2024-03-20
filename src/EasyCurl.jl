@@ -158,7 +158,7 @@ iserror(x::Response) = x.status >= 300
 function headers(x::Response, key::AbstractString)
     hdrs = String[]
     for (k, v) in x.headers
-        key == k && push!(hdrs, v)
+        lowercase(key) == lowercase(k) && push!(hdrs, v)
     end
     return hdrs
 end

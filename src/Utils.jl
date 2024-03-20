@@ -1,5 +1,3 @@
-# Utils
-
 """
     EasyCurl.urlencode(s::AbstractString)
 
@@ -106,7 +104,7 @@ function parse_headers(headers::AbstractString)
     result = Pair{String,String}[]
     for m in matches
         isnothing(m) && continue
-        push!(result, m[1] => m[2])
+        push!(result, lowercase(m[1]) => m[2])
     end
     return result
 end

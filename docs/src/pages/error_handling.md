@@ -17,6 +17,8 @@ Below is a small example of error handling.
 ### Example
 
 ```julia
+using EasyCurl
+
 headers = Pair{String,String}[
     "User-Agent" => "EasyCurl.jl",
     "Content-Type" => "application/json",
