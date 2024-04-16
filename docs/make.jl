@@ -7,7 +7,7 @@ makedocs(;
     modules = [EasyCurl],
     sitename = "EasyCurl.jl",
     format = Documenter.HTML(;
-        repolink = "https://github.com/bhftbootcamp/EasyCurl.jl.git",
+        repolink = "https://github.com/bhftbootcamp/EasyCurl.jl",
         canonical = "https://bhftbootcamp.github.io/EasyCurl.jl",
         edit_link = "master",
         assets = String["assets/favicon.ico"],
