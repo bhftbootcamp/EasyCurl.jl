@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Home · EasyCurl.jl</title><meta name="title" content="Home · EasyCurl.jl"/><meta property="og:title" content="Home · EasyCurl.jl"/><meta property="twitter:title" content="Home · EasyCurl.jl"/><meta name="description" content="Documentation for EasyCurl.jl."/><meta property="og:description" content="Documentation for EasyCurl.jl."/><meta property="twitter:description" content="Documentation for EasyCurl.jl."/><meta property="og:url" content="https://bhftbootcamp.github.io/EasyCurl.jl/"/><meta property="twitter:url" content="https://bhftbootcamp.github.io/EasyCurl.jl/"/><link rel="canonical" href="https://bhftbootcamp.github.io/EasyCurl.jl/"/><script data-outdated-warner src="assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="search_index.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script><link href="assets/favicon.ico" rel="icon" type="image/x-icon"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href><img src="assets/logo.svg" alt="EasyCurl.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href>EasyCurl.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li class="is-active"><a class="tocitem" href>Home</a><ul class="internal"><li><a class="tocitem" href="#Installation"><span>Installation</span></a></li><li><a class="tocitem" href="#Usage"><span>Usage</span></a></li></ul></li><li><a class="tocitem" href="pages/api_reference/">API Reference</a></li><li><a class="tocitem" href="pages/constants/">Constants</a></li><li><a class="tocitem" href="pages/error_handling/">For Developers</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Home</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Home</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/bhftbootcamp/EasyCurl.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/bhftbootcamp/EasyCurl.jl/blob/master/docs/src/index.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><p><img src="assets/readme_logo.svg" alt="EasyCurl.jl Logo"/></p><h1 id="EasyCurl.jl"><a class="docs-heading-anchor" href="#EasyCurl.jl">EasyCurl.jl</a><a id="EasyCurl.jl-1"></a><a class="docs-heading-anchor-permalink" href="#EasyCurl.jl" title="Permalink"></a></h1><p>EasyCurl is a lightweight Julia package that provides a user-friendly wrapper for the libcurl C library, for making HTTP requests. It is useful for sending HTTP requests, especially when dealing with RESTful APIs.</p><h2 id="Installation"><a class="docs-heading-anchor" href="#Installation">Installation</a><a id="Installation-1"></a><a class="docs-heading-anchor-permalink" href="#Installation" title="Permalink"></a></h2><p>To install EasyCurl, simply use the Julia package manager:</p><pre><code class="language-julia hljs">] add EasyCurl</code></pre><h2 id="Usage"><a class="docs-heading-anchor" href="#Usage">Usage</a><a id="Usage-1"></a><a class="docs-heading-anchor-permalink" href="#Usage" title="Permalink"></a></h2><p>Here is an example usage of EasyCurl:</p><p>In the example, a POST request is sent to http://httpbin.org/post using the <code>en0</code> network interface</p><pre><code class="language-julia hljs">using EasyCurl
+
+headers = Pair{String,String}[
+    &quot;User-Agent&quot; =&gt; &quot;EasyCurl.jl&quot;,
+    &quot;Content-Type&quot; =&gt; &quot;application/json&quot;
+]
+
+# &#39;interface&#39; argument specifies the network interface to use for the request
+# &#39;read_timeout&#39; and &#39;connect_timeout&#39; define how long to wait for a response or connection
+# &#39;retries&#39; argument specifies how many times to retry the request if it fails initially
+
+response = curl_request(&quot;POST&quot;, &quot;http://httpbin.org/post&quot;, headers = headers, query = &quot;qry=你好嗎&quot;,
+    body = &quot;{\&quot;data\&quot;:\&quot;hi\&quot;}&quot;, interface = &quot;en0&quot;, read_timeout = 5, connect_timeout = 10, retries = 10)
+
+julia&gt; curl_status(response)
+200
+
+julia&gt; String(curl_body(response))
+{
+  &quot;headers&quot;: {
+    &quot;X-Amzn-Trace-Id&quot;: &quot;Root=1-6588a009-19f3dc0321bee38106226bb3&quot;,
+    &quot;Content-Length&quot;: &quot;13&quot;,
+    &quot;Host&quot;: &quot;httpbin.org&quot;,
+    &quot;Accept&quot;: &quot;*/*&quot;,
+    &quot;Content-Type&quot;: &quot;application/json&quot;,
+    &quot;Accept-Encoding&quot;: &quot;gzip&quot;,
+    &quot;User-Agent&quot;: &quot;EasyCurl.jl&quot;
+  },
+  &quot;json&quot;: {
+    &quot;data&quot;: &quot;hi&quot;
+  },
+  &quot;files&quot;: {},
+  &quot;args&quot;: {
+    &quot;qry&quot;: &quot;你好嗎&quot;
+  },
+  &quot;data&quot;: &quot;{\&quot;data\&quot;:\&quot;hi\&quot;}&quot;,
+  &quot;url&quot;: &quot;http://httpbin.org/post?qry=你好嗎&quot;,
+  &quot;form&quot;: {},
+  &quot;origin&quot;: &quot;100.250.50.140&quot;
+}</code></pre><p>For HEAD, GET, POST, PUT, and PATCH requests, a similar structure is used to invoke the <code>curl_request</code> function with the appropriate HTTP method specified</p><pre><code class="language-julia hljs">using EasyCurl
+
+headers = [
+    &quot;User-Agent&quot; =&gt; &quot;EasyCurl.jl&quot;,
+    &quot;Content-Type&quot; =&gt; &quot;application/json&quot;
+]
+
+# HEAD
+julia&gt; curl_request(&quot;HEAD&quot;, &quot;http://httpbin.org/get&quot;, headers = headers,
+    query = &quot;qry=你好嗎&quot;, interface = &quot;0.0.0.0&quot;)
+
+# GET
+julia&gt; curl_request(&quot;GET&quot;, &quot;http://httpbin.org/get&quot;, headers = headers,
+    query = Dict{String,String}(&quot;qry&quot; =&gt; &quot;你好嗎&quot;))
+
+# POST
+julia&gt; curl_request(&quot;POST&quot;, &quot;http://httpbin.org/post&quot;, headers = headers,
+    query = &quot;qry=你好嗎&quot;, body = &quot;{\&quot;data\&quot;:\&quot;hi\&quot;}&quot;)
+
+# PUT
+julia&gt; curl_request(&quot;PUT&quot;, &quot;http://httpbin.org/put&quot;, headers = headers,
+    query = &quot;qry=你好嗎&quot;, body = &quot;{\&quot;data\&quot;:\&quot;hi\&quot;}&quot;)
+
+# PATCH
+julia&gt; curl_request(&quot;PATCH&quot;, &quot;http://httpbin.org/patch&quot;, headers = headers,
+    query = &quot;qry=你好嗎&quot;, body = &quot;{\&quot;data\&quot;:\&quot;hi\&quot;}&quot;)</code></pre><p>Example of error handling with <code>EasyCurl</code>:</p><pre><code class="language-julia hljs">using EasyCurl
+
+headers = Pair{String,String}[
+    &quot;User-Agent&quot; =&gt; &quot;EasyCurl.jl&quot;,
+    &quot;Content-Type&quot; =&gt; &quot;application/json&quot;,
+]
+
+try
+    response = curl_request(&quot;GET&quot;, &quot;http://httpbin.org/status/400&quot;, query = &quot;echo=你好嗎&quot;,
+        headers = headers, interface = &quot;0.0.0.0&quot;, read_timeout = 30, retries = 1)
+    # If the request is successful, you can process the response here
+    # ...
+catch e
+    if isa(e, EasyCurlError{EasyCurl.CURLE_COULDNT_CONNECT})
+        # Handle the case where the connection to the server could not be made
+    elseif isa(e, EasyCurlError{EasyCurl.CURLE_OPERATION_TIMEDOUT})
+        # Handle the case where the operation timed out
+    elseif isa(e, EasyCurlStatusError{400})
+        # Handle a 400 Bad Request error specifically
+        rethrow(e)
+    end
+end</code></pre><p>URL encoding and decoding</p><pre><code class="language-julia hljs">using EasyCurl
+
+julia&gt; EasyCurl.urlencode(&quot;[curl]&quot;)
+&quot;%5Bcurl%5D&quot;
+
+julia&gt; EasyCurl.urldecode(&quot;%5Bcurl%5D&quot;)
+&quot;[curl]&quot;</code></pre><h3 id="Using-a-proxy-with-EasyCurl"><a class="docs-heading-anchor" href="#Using-a-proxy-with-EasyCurl">Using a proxy with EasyCurl</a><a id="Using-a-proxy-with-EasyCurl-1"></a><a class="docs-heading-anchor-permalink" href="#Using-a-proxy-with-EasyCurl" title="Permalink"></a></h3><p>To use a proxy for all your HTTP and HTTPS requests in <code>EasyCurl</code>, you can set the following environment variables:</p><ul><li><code>all_proxy</code>: Proxy for all protocols</li><li><code>http_proxy</code>: Proxy for HTTP requests</li><li><code>https_proxy</code>: Proxy for HTTPS requests</li><li><code>no_proxy</code>: Domains to exclude from proxying</li></ul><pre><code class="language-julia hljs"># &#39;your_proxy_username&#39; your proxy account&#39;s username
+# &#39;your_proxy_password&#39; your proxy account&#39;s password
+# &#39;your_proxy_host&#39; the hostname or IP address of your proxy server
+# &#39;your_proxy_port&#39; the port number your proxy server listens on
+
+# socks5 proxy for all protocols
+ENV[&quot;all_proxy&quot;] = &quot;socks5://your_proxy_username:your_proxy_password@your_proxy_host:your_proxy_port&quot;
+
+# domains that should bypass the proxy
+ENV[&quot;no_proxy&quot;] = &quot;localhost,.local,.mywork&quot;</code></pre><p>When executing the <code>curl_request</code> function with the <code>proxy</code> parameter, it will ignore the environment variable settings for proxies</p><pre><code class="language-julia hljs">julia&gt; curl_request(&quot;GET&quot;, &quot;http://httpbin.org/get&quot;,
+    proxy = &quot;socks5://your_proxy_username:your_proxy_password@your_proxy_host:your_proxy_port&quot;)</code></pre></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="pages/api_reference/">API Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.4.1 on <span class="colophon-date" title="Wednesday 8 May 2024 17:23">Wednesday 8 May 2024</span>. Using Julia version 1.10.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
