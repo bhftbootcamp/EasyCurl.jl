@@ -289,7 +289,6 @@ function curl_setup_rq(request::Request)
     curl_easy_setopt(request.rq_curl, CURLOPT_USERAGENT, "EasyCurl/1.2.0")
     curl_easy_setopt(request.rq_curl, CURLOPT_PROXY, something(request.proxy, C_NULL))
     curl_easy_setopt(request.rq_curl, CURLOPT_VERBOSE, request.verbose)
-    curl_easy_setopt(request.rq_curl, CURLOPT_VERBOSE, request.verbose)
 
     c_curl_write_cb =
         @cfunction(curl_write_cb, Csize_t, (Ptr{UInt8}, Csize_t, Csize_t, Ptr{Cvoid}))
