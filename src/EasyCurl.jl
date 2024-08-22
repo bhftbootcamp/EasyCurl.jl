@@ -196,7 +196,7 @@ Represents an HTTP request object.
 - `read_timeout::Real`: The read timeout for the response in seconds.
 - `interface::Union{String, Nothing}`: The network interface to use (or `nothing` for the default).
 - `proxy::Union{String, Nothing}`: The proxy server to use (or `nothing` for no proxy).
-- `accept_encoding::String`: The accepted encoding for the response (e.g., "gzip").
+- `accept_encoding::Union{String,Nothing}`: The accepted encoding for the response (e.g., "gzip").
 - `ssl_verifypeer::Bool`: Whether to verify SSL certificates.
 - `verbose::Bool`: Enables verbose output from EasyCurl for debugging.
 - `rq_curl::Ptr{CURL}`: A pointer to a EasyCurl handle for the request.
@@ -212,7 +212,7 @@ struct Request
     read_timeout::Real
     interface::Union{String,Nothing}
     proxy::Union{String,Nothing}
-    accept_encoding::String
+    accept_encoding::Union{String,Nothing}
     ssl_verifypeer::Bool
     verbose::Bool
     rq_curl::Ptr{CURL}
