@@ -284,10 +284,11 @@ function curl_setup_rq(request::Request)
     curl_easy_setopt(request.rq_curl, CURLOPT_TIMEOUT, request.read_timeout)
     curl_easy_setopt(request.rq_curl, CURLOPT_WRITEFUNCTION, curl_write_cb)
     curl_easy_setopt(request.rq_curl, CURLOPT_INTERFACE, something(request.interface, C_NULL))
-    curl_easy_setopt(request.rq_curl, CURLOPT_ACCEPT_ENCODING, request.accept_encoding)
+    curl_easy_setopt(request.rq_curl, CURLOPT_ACCEPT_ENCODING, something(request.accept_encoding, C_NULL))
     curl_easy_setopt(request.rq_curl, CURLOPT_SSL_VERIFYPEER, request.ssl_verifypeer)
     curl_easy_setopt(request.rq_curl, CURLOPT_USERAGENT, "EasyCurl/1.2.0")
     curl_easy_setopt(request.rq_curl, CURLOPT_PROXY, something(request.proxy, C_NULL))
+    curl_easy_setopt(request.rq_curl, CURLOPT_VERBOSE, request.verbose)
     curl_easy_setopt(request.rq_curl, CURLOPT_VERBOSE, request.verbose)
 
     c_curl_write_cb =
@@ -502,7 +503,7 @@ function request(
     proxy::Union{String,Nothing} = nothing,
     retries::Int64 = 1,
     status_exception::Bool = true,
-    accept_encoding::String = "gzip",
+    accept_encoding::Union{String,Nothing} = "gzip",
     ssl_verifypeer::Bool = true,
     verbose::Bool = false,
 )
@@ -534,11 +535,11 @@ function request(
             throw(EasyCurlStatusError(response))
         end
         response
-    catch e
+    catch
         retries -= 1
         sleep(0.25)
         retries >= 0 && @goto retry_request
-        rethrow(e)
+        rethrow()
     end
 end
 
