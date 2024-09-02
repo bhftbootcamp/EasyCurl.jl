@@ -154,7 +154,7 @@ end
 function Base.show(io::IO, x::CurlResponse)
     println(io, CurlResponse)
     println(io, "\"\"\"")
-    println(io, "HTTP/1.1 $(x.status) $(get(HTTP_STATUS_CODES, x.status, ""))")
+    println(io, "HTTP/1.1 $(x.status) $(Base.get(HTTP_STATUS_CODES, x.status, ""))")
     for (k, v) in x.headers
         println(io, "$k: '$v'")
     end
@@ -307,7 +307,7 @@ struct CurlStatusError{code} <: Exception
     response::CurlResponse
 
     function CurlStatusError(x::CurlResponse)
-        return new{status(x)}(status(x), get(HTTP_STATUS_CODES, status(x), HTTP_STATUS_CODES[500]), x)
+        return new{status(x)}(status(x), Base.get(HTTP_STATUS_CODES, status(x), HTTP_STATUS_CODES[500]), x)
     end
 end
 
