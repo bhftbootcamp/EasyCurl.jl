@@ -63,7 +63,7 @@ julia&gt; curl_request(&quot;PUT&quot;, &quot;http://httpbin.org/put&quot;, head
 
 # PATCH
 julia&gt; curl_request(&quot;PATCH&quot;, &quot;http://httpbin.org/patch&quot;, headers = headers,
-    query = &quot;qry=你好嗎&quot;, body = &quot;{\&quot;data\&quot;:\&quot;hi\&quot;}&quot;)</code></pre><p>Reusing CurlClient:</p><p>This example shows how to use <code>CurlClient</code> for making HTTP requests by reusing the same client instance, which can help in speeding up the requests when making multiple calls to the same server:</p><pre><code class="language-julia hljs">using EasyCurl
+    query = &quot;qry=你好嗎&quot;, body = &quot;{\&quot;data\&quot;:\&quot;hi\&quot;}&quot;)</code></pre><p>This example shows how to use <code>CurlClient</code> for making HTTP requests by reusing the same client instance, which can help in speeding up the requests when making multiple calls to the same server:</p><pre><code class="language-julia hljs">using EasyCurl
 
 headers = Pair{String,String}[
     &quot;User-Agent&quot; =&gt; &quot;EasyCurl.jl&quot;,
