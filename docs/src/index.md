@@ -28,10 +28,10 @@ headers = Pair{String,String}[
 
 # 'interface' argument specifies the network interface to use for the request
 # 'read_timeout' and 'connect_timeout' define how long to wait for a response or connection
-# 'retries' argument specifies how many times to retry the request if it fails initially
+# 'retry' argument specifies how many times to retry the request if it fails initially
 
 response = curl_request("POST", "http://httpbin.org/post", headers = headers, query = "qry=你好嗎",
-    body = "{\"data\":\"hi\"}", interface = "en0", read_timeout = 5, connect_timeout = 10, retries = 10)
+    body = "{\"data\":\"hi\"}", interface = "en0", read_timeout = 5, connect_timeout = 10, retry = 10)
 
 julia> curl_status(response)
 200
@@ -104,31 +104,60 @@ headers = Pair{String,String}[
 
 try
     response = curl_request("GET", "http://httpbin.org/status/400", query = "echo=你好嗎",
-        headers = headers, interface = "0.0.0.0", read_timeout = 30, retries = 1)
+        headers = headers, interface = "0.0.0.0", read_timeout = 30, retry = 1)
     # If the request is successful, you can process the response here
     # ...
 catch e
-    if isa(e, EasyCurlError{EasyCurl.CURLE_COULDNT_CONNECT})
+    if isa(e, CurlError{EasyCurl.CURLE_COULDNT_CONNECT})
         # Handle the case where the connection to the server could not be made
-    elseif isa(e, EasyCurlError{EasyCurl.CURLE_OPERATION_TIMEDOUT})
+    elseif isa(e, CurlError{EasyCurl.CURLE_OPERATION_TIMEDOUT})
         # Handle the case where the operation timed out
-    elseif isa(e, EasyCurlStatusError{400})
+    elseif isa(e, CurlStatusError{400})
         # Handle a 400 Bad Request error specifically
         rethrow(e)
     end
 end
 ```
 
-URL encoding and decoding
+## Reusing CurlClient
+
+This example shows how to use `CurlClient` for making HTTP requests by reusing the same client instance, which can help in speeding up the requests when making multiple calls to the same server:
 
 ```julia
 using EasyCurl
 
-julia> EasyCurl.urlencode("[curl]")
-"%5Bcurl%5D"
+headers = Pair{String,String}[
+    "User-Agent" => "EasyCurl.jl",
+    "Content-Type" => "application/json"
+]
 
-julia> EasyCurl.urldecode("%5Bcurl%5D")
-"[curl]"
+curl_client = CurlClient()
+
+# Perform a GET request
+response = curl_do(
+    curl_client,
+    "GET",
+    "http://httpbin.org/get",
+    headers = headers
+)
+
+julia> curl_status(response)
+200
+
+julia> String(curl_body(response))
+{
+  "headers": {
+    "X-Amzn-Trace-Id": "Root=1-6588a009-19f3dc0321bee38106226bb3",
+    "Content-Length": "13",
+    "Host": "httpbin.org",
+    "Accept": "*/*",
+    "Content-Type": "application/json",
+    "Accept-Encoding": "gzip",
+    "User-Agent": "EasyCurl.jl"
+  },
+  ....
+
+close(curl_client)
 ```
 
 ### Using a proxy with EasyCurl

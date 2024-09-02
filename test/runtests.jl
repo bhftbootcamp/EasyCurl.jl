@@ -1,4 +1,4 @@
-using Test, Random, Sockets, JSON
+using Test, Random, Sockets, Serde
 
 include("../src/EasyCurl.jl")
 using .EasyCurl
