@@ -13,8 +13,8 @@ curl_delete
 ## Request/Response types
 
 ```@docs
-EasyCurl.Request
-EasyCurl.Response
+CurlRequest
+CurlResponse
 ```
 
 ## Advanced Topics
@@ -26,11 +26,4 @@ curl_headers
 curl_body
 curl_iserror
 EasyCurl.joinurl
-```
-
-## Encode/decode
-
-```@docs
-EasyCurl.urlencode
-EasyCurl.urldecode
 ```
