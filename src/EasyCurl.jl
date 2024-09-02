@@ -559,7 +559,7 @@ function curl_do(
         _curl_req_handle(curl_client, req)
         r = CurlResponse(req.ctx)
         status_exception && iserror(r) &&
-            throw(EasyCurlStatusError(r))
+            throw(CurlStatusError(r))
         r
     catch e
         retry = retry - 1
