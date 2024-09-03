@@ -8,10 +8,10 @@ headers = Pair{String,String}[
 
 # &#39;interface&#39; argument specifies the network interface to use for the request
 # &#39;read_timeout&#39; and &#39;connect_timeout&#39; define how long to wait for a response or connection
-# &#39;retries&#39; argument specifies how many times to retry the request if it fails initially
+# &#39;retry&#39; argument specifies how many times to retry the request if it fails initially
 
 response = curl_request(&quot;POST&quot;, &quot;http://httpbin.org/post&quot;, headers = headers, query = &quot;qry=你好嗎&quot;,
-    body = &quot;{\&quot;data\&quot;:\&quot;hi\&quot;}&quot;, interface = &quot;en0&quot;, read_timeout = 5, connect_timeout = 10, retries = 10)
+    body = &quot;{\&quot;data\&quot;:\&quot;hi\&quot;}&quot;, interface = &quot;en0&quot;, read_timeout = 5, connect_timeout = 10, retry = 10)
 
 julia&gt; curl_status(response)
 200
@@ -63,7 +63,41 @@ julia&gt; curl_request(&quot;PUT&quot;, &quot;http://httpbin.org/put&quot;, head
 
 # PATCH
 julia&gt; curl_request(&quot;PATCH&quot;, &quot;http://httpbin.org/patch&quot;, headers = headers,
-    query = &quot;qry=你好嗎&quot;, body = &quot;{\&quot;data\&quot;:\&quot;hi\&quot;}&quot;)</code></pre><p>Example of error handling with <code>EasyCurl</code>:</p><pre><code class="language-julia hljs">using EasyCurl
+    query = &quot;qry=你好嗎&quot;, body = &quot;{\&quot;data\&quot;:\&quot;hi\&quot;}&quot;)</code></pre><p>This example shows how to use <code>CurlClient</code> for making HTTP requests by reusing the same client instance, which can help in speeding up the requests when making multiple calls to the same server:</p><pre><code class="language-julia hljs">using EasyCurl
+
+headers = Pair{String,String}[
+    &quot;User-Agent&quot; =&gt; &quot;EasyCurl.jl&quot;,
+    &quot;Content-Type&quot; =&gt; &quot;application/json&quot;
+]
+
+curl_client = CurlClient()
+
+# Perform a GET request
+response = curl_request(
+    curl_client,
+    &quot;GET&quot;,
+    &quot;http://httpbin.org/get&quot;,
+    headers = headers
+)
+
+julia&gt; curl_status(response)
+200
+
+julia&gt; String(curl_body(response))
+{
+  &quot;headers&quot;: {
+    &quot;X-Amzn-Trace-Id&quot;: &quot;Root=1-6588a009-19f3dc0321bee38106226bb3&quot;,
+    &quot;Content-Length&quot;: &quot;13&quot;,
+    &quot;Host&quot;: &quot;httpbin.org&quot;,
+    &quot;Accept&quot;: &quot;*/*&quot;,
+    &quot;Content-Type&quot;: &quot;application/json&quot;,
+    &quot;Accept-Encoding&quot;: &quot;gzip&quot;,
+    &quot;User-Agent&quot;: &quot;EasyCurl.jl&quot;
+  },
+  ...
+}
+
+close(curl_client)</code></pre><p>Example of error handling with <code>EasyCurl</code>:</p><pre><code class="language-julia hljs">using EasyCurl
 
 headers = Pair{String,String}[
     &quot;User-Agent&quot; =&gt; &quot;EasyCurl.jl&quot;,
@@ -72,25 +106,19 @@ headers = Pair{String,String}[
 
 try
     response = curl_request(&quot;GET&quot;, &quot;http://httpbin.org/status/400&quot;, query = &quot;echo=你好嗎&quot;,
-        headers = headers, interface = &quot;0.0.0.0&quot;, read_timeout = 30, retries = 1)
+        headers = headers, interface = &quot;0.0.0.0&quot;, read_timeout = 30, retry = 1)
     # If the request is successful, you can process the response here
     # ...
 catch e
-    if isa(e, EasyCurlError{EasyCurl.CURLE_COULDNT_CONNECT})
+    if isa(e, CurlError{EasyCurl.CURLE_COULDNT_CONNECT})
         # Handle the case where the connection to the server could not be made
-    elseif isa(e, EasyCurlError{EasyCurl.CURLE_OPERATION_TIMEDOUT})
+    elseif isa(e, CurlError{EasyCurl.CURLE_OPERATION_TIMEDOUT})
         # Handle the case where the operation timed out
-    elseif isa(e, EasyCurlStatusError{400})
+    elseif isa(e, CurlStatusError{400})
         # Handle a 400 Bad Request error specifically
         rethrow(e)
     end
-end</code></pre><p>URL encoding and decoding</p><pre><code class="language-julia hljs">using EasyCurl
-
-julia&gt; EasyCurl.urlencode(&quot;[curl]&quot;)
-&quot;%5Bcurl%5D&quot;
-
-julia&gt; EasyCurl.urldecode(&quot;%5Bcurl%5D&quot;)
-&quot;[curl]&quot;</code></pre><h3 id="Using-a-proxy-with-EasyCurl"><a class="docs-heading-anchor" href="#Using-a-proxy-with-EasyCurl">Using a proxy with EasyCurl</a><a id="Using-a-proxy-with-EasyCurl-1"></a><a class="docs-heading-anchor-permalink" href="#Using-a-proxy-with-EasyCurl" title="Permalink"></a></h3><p>To use a proxy for all your HTTP and HTTPS requests in <code>EasyCurl</code>, you can set the following environment variables:</p><ul><li><code>all_proxy</code>: Proxy for all protocols</li><li><code>http_proxy</code>: Proxy for HTTP requests</li><li><code>https_proxy</code>: Proxy for HTTPS requests</li><li><code>no_proxy</code>: Domains to exclude from proxying</li></ul><pre><code class="language-julia hljs"># &#39;your_proxy_username&#39; your proxy account&#39;s username
+end</code></pre><h3 id="Using-a-proxy-with-EasyCurl"><a class="docs-heading-anchor" href="#Using-a-proxy-with-EasyCurl">Using a proxy with EasyCurl</a><a id="Using-a-proxy-with-EasyCurl-1"></a><a class="docs-heading-anchor-permalink" href="#Using-a-proxy-with-EasyCurl" title="Permalink"></a></h3><p>To use a proxy for all your HTTP and HTTPS requests in <code>EasyCurl</code>, you can set the following environment variables:</p><ul><li><code>all_proxy</code>: Proxy for all protocols</li><li><code>http_proxy</code>: Proxy for HTTP requests</li><li><code>https_proxy</code>: Proxy for HTTPS requests</li><li><code>no_proxy</code>: Domains to exclude from proxying</li></ul><pre><code class="language-julia hljs"># &#39;your_proxy_username&#39; your proxy account&#39;s username
 # &#39;your_proxy_password&#39; your proxy account&#39;s password
 # &#39;your_proxy_host&#39; the hostname or IP address of your proxy server
 # &#39;your_proxy_port&#39; the port number your proxy server listens on
@@ -100,4 +128,4 @@ ENV[&quot;all_proxy&quot;] = &quot;socks5://your_proxy_username:your_proxy_passw
 
 # domains that should bypass the proxy
 ENV[&quot;no_proxy&quot;] = &quot;localhost,.local,.mywork&quot;</code></pre><p>When executing the <code>curl_request</code> function with the <code>proxy</code> parameter, it will ignore the environment variable settings for proxies</p><pre><code class="language-julia hljs">julia&gt; curl_request(&quot;GET&quot;, &quot;http://httpbin.org/get&quot;,
-    proxy = &quot;socks5://your_proxy_username:your_proxy_password@your_proxy_host:your_proxy_port&quot;)</code></pre></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="pages/api_reference/">API Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.6.0 on <span class="colophon-date" title="Thursday 22 August 2024 20:09">Thursday 22 August 2024</span>. Using Julia version 1.10.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+    proxy = &quot;socks5://your_proxy_username:your_proxy_password@your_proxy_host:your_proxy_port&quot;)</code></pre></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="pages/api_reference/">API Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.6.0 on <span class="colophon-date" title="Tuesday 3 September 2024 20:04">Tuesday 3 September 2024</span>. Using Julia version 1.10.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
