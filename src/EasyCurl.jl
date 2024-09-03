@@ -164,8 +164,6 @@ An HTTP response object returned on a request completion. Constructed from a [`C
 - `curl_request_time(x::CurlResponse)` -> `Float64`: Returns the request time.
 - `curl_headers(x::CurlResponse)` -> `Vector{Pair{String,String}}`: Returns the headers.
 - `curl_body(x::CurlResponse)` -> `Vector{UInt8}`: Returns the response body.
-
-See also: [`curl_status`](@ref), [`curl_request_time`](@ref), [`curl_headers`](@ref), [`curl_body`](@ref), [`curl_iserror`](@ref)
 """
 struct CurlResponse
     status::Int64
