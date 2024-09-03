@@ -14,9 +14,11 @@ julia> EasyCurl.urlencode("[curl]")
 """
 function urlencode(s::AbstractString)
     curl = curl_easy_init()
-    esc_s = urlencode(curl, s)
-    curl_easy_cleanup(curl)
-    return esc_s
+    try
+        urlencode(curl, s)
+    finally
+        curl_easy_cleanup(curl)
+    end
 end
 
 function urlencode(curl, s::AbstractString)
@@ -28,9 +30,11 @@ end
 
 function urlencode_query_params(params::AbstractDict{String,T}) where {T<:Any}
     curl = curl_easy_init()
-    esc_s = urlencode_query_params(curl, params)
-    curl_easy_cleanup(curl)
-    return esc_s
+    try
+        urlencode_query_params(curl, params)
+    finally
+        curl_easy_cleanup(curl)
+    end
 end
 
 function urlencode_query_params(curl, params::AbstractDict{String,T}) where {T<:Any}
@@ -64,9 +68,11 @@ julia> EasyCurl.urldecode("%5Bcurl%5D")
 """
 function urldecode(s::AbstractString)
     curl = curl_easy_init()
-    unesc_s = urldecode(curl, s)
-    curl_easy_cleanup(curl)
-    return unesc_s
+    try
+        urldecode(curl, s)
+    finally
+        curl_easy_cleanup(curl)
+    end
 end
 
 function urldecode(curl, s::AbstractString)
