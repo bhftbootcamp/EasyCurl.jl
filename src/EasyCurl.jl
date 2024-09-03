@@ -90,10 +90,10 @@ ERROR: CurlError{7}(Couldn't connect to server)
 ```
 """
 struct CurlError{code} <: Exception
-    code::UInt32
+    code::UInt64
     message::String
 
-    function CurlError(code::UInt32, message::String)
+    function CurlError(code::Integer, message::String)
         return new{code}(code, message)
     end
 end
@@ -559,7 +559,7 @@ end
 """
     curl_open(f::Function, x...; kw...)
 
-A helper function for executing a batch of curl requests, using the same client. Optionally 
+A helper function for executing a batch of curl requests, using the same client. Optionally
 configure the client (see [`CurlClient`](@ref) for more details).
 
 ## Examples
