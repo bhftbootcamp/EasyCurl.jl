@@ -3,7 +3,6 @@
 ```@docs
 CurlClient
 CurlRequest
-CurlContext
 CurlResponse
 ```
 

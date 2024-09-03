@@ -16,7 +16,6 @@ export curl_body,
     curl_iserror
 
 export CurlClient,
-    CurlContext,
     CurlRequest,
     CurlResponse,
     CurlError,
@@ -102,21 +101,7 @@ end
 function Base.showerror(io::IO, e::CurlError)
     print(io, "CurlError{$(Int64(e.code))}(", e.message, ")")
 end
-"""
-    CurlContext
 
-A service object for managing the state of a Curl request.
-
-## Fields
-
-- `curl_slist_ptr::Ptr{Nothing}`: A pointer to a linked list of headers.
-- `curl_status::Vector{Clong}`: The HTTP status code of the response.
-- `curl_total_time::Vector{Cdouble}`: The time taken for the HTTP request in seconds.
-- `curl_active::Vector{Cint}`: The number of active requests.
-- `byte_received::UInt64`: The number of bytes received.
-- `headers::IOBuffer`: The headers received in the HTTP response.
-- `body::IOBuffer`: The body of the response.
-"""
 mutable struct CurlContext
     curl_slist_ptr::Ptr{Nothing}
     curl_status::Vector{Clong}
@@ -149,7 +134,7 @@ end
 """
     CurlResponse(x::CurlContext)
 
-An HTTP response object returned on a request completion. Constructed from a [`CurlContext`](@ref) object.
+An HTTP response object returned on a request completion.
 
 ## Fields
 
