@@ -47,6 +47,16 @@ const MAX_REDIRECTIONS = 5
 include("Static.jl")
 include("Utils.jl")
 
+"""
+    CurlClient
+
+Represents a client for making HTTP requests using libcurl. Allows for connection reuse.
+
+## Fields
+
+- `curl_handle::Ptr{CURL}`: The libcurl easy handle.
+- `multi_handle::Ptr{CURL}`: The libcurl multi handle.
+"""
 struct CurlClient
     curl_handle::Ptr{CURL}
     multi_handle::Ptr{CURL}
@@ -62,10 +72,10 @@ end
 """
     CurlError{code} <: Exception
 
-Type that is returned if [`curl_request`](@ref) fails on the libcurl side.
+Type wrapping LibCURL error codes. Returned from [`curl_request`](@ref) when a libcurl error occurs.
 
 ## Fields
-- `code::UInt32`: The error code (see [libcurl error codes](https://curl.se/libcurl/c/libcurl-errors.html)).
+- `code::UInt32`: The LibCURL error code (see [libcurl error codes](https://curl.se/libcurl/c/libcurl-errors.html)).
 - `message::String`: The error message.
 
 ## Examples
@@ -89,9 +99,25 @@ struct CurlError{code} <: Exception
 end
 
 function Base.showerror(io::IO, e::CurlError)
-    print(io, "CurlError{$(e.code)}(", e.message, ")")
+    print(io, "CurlError{$(Int64(e.code))}(", e.message, ")")
 end
 
+"""
+    CurlContext
+
+Service structure for interfacing with libcurl. Contains the necessary fields for libcurl to operate.
+Used to store the state of a request and response.
+
+## Fields
+
+- `curl_slist_ptr::Ptr{Nothing}`: The libcurl slist pointer.
+- `curl_status::Vector{Clong}`: The HTTP status code of the response.
+- `curl_total_time::Vector{Cdouble}`: The total time taken for the request.
+- `curl_active::Vector{Cint}`: The number of active requests.
+- `byte_received::UInt64`: The number of bytes received.
+- `headers::IOBuffer`: The headers received in the response.
+- `body::IOBuffer`: The body of the response.
+"""
 mutable struct CurlContext
     curl_slist_ptr::Ptr{Nothing}
     curl_status::Vector{Clong}
@@ -124,7 +150,7 @@ end
 """
     CurlResponse(x::CurlContext)
 
-Represents an HTTP response object that can be received from a `CurlContext`.
+An HTTP response object. Constructed from a [`CurlContext`](@ref) object.
 
 ## Fields
 
@@ -172,7 +198,7 @@ end
 """
     curl_status(x::CurlResponse) -> Int64
 
-Extracts the HTTP status code from a [`CurlResponse`](@ref) object.
+Returns the HTTP status code from a [`CurlResponse`](@ref) object.
 """
 curl_status(x::CurlResponse) = status(x)
 status(x::CurlResponse) = x.status
@@ -180,7 +206,7 @@ status(x::CurlResponse) = x.status
 """
     curl_request_time(x::CurlResponse) -> Float64
 
-Extracts the request time from a [`CurlResponse`](@ref) object.
+Returns the request time from a [`CurlResponse`](@ref) object.
 """
 curl_request_time(x::CurlResponse) = request_time(x)
 request_time(x::CurlResponse) = x.request_time
@@ -188,7 +214,7 @@ request_time(x::CurlResponse) = x.request_time
 """
     curl_headers(x::CurlResponse) -> Vector{Pair{String,String}}
 
-Parses the HTTP headers from a [`CurlResponse`](@ref) object.
+Returns the HTTP headers from a [`CurlResponse`](@ref) object.
 """
 curl_headers(x::CurlResponse) = headers(x)
 headers(x::CurlResponse) = x.headers
@@ -204,7 +230,7 @@ end
 """
     curl_body(x::CurlResponse) -> Vector{UInt8}
 
-Extracts the response body from a [`CurlResponse`](@ref) object.
+Returns the response body from a [`CurlResponse`](@ref) object.
 """
 curl_body(x::CurlResponse) = body(x)
 body(x::CurlResponse) = x.body
@@ -212,10 +238,10 @@ body(x::CurlResponse) = x.body
 """
     curl_iserror(x::CurlResponse) -> Bool
 
-Check that [`CurlResponse`](@ref) have an error status
+Checks whether [`CurlResponse`](@ref) contains an errorneous HTTP status code (>= 400).
 """
 curl_iserror(x::CurlResponse) = iserror(x.status)
-iserror(x::CurlResponse) = x.status >= 300
+iserror(x::CurlResponse) = x.status >= 400
 
 """
     CurlRequest
@@ -224,17 +250,21 @@ Represents an HTTP request object.
 
 ## Fields
 
-- `method::String`: Specifies the HTTP method for the request (e.g., `"GET"`, `"POST"`).
+- `method::String`: The HTTP method for the request (e.g., `"GET"`, `"POST"`).
 - `url::String`: The target URL for the HTTP request.
-- `headers::Vector{Pair{String, String}}`: A list of header key-value pairs to include in the request.
-- `body::Vector{UInt8}`: The body of the request, represented as a vector of bytes.
-- `connect_timeout::Real`: Timeout in seconds for establishing a connection.
-- `read_timeout::Real`: Timeout in seconds for reading the response.
-- `interface::Union{String,Nothing}`: Specifies a particular network interface to use for the request, or `nothing` to use the default.
-- `proxy::Union{String,Nothing}`: Specifies a proxy server to use for the request, or `nothing` to bypass proxy settings.
-- `accept_encoding::Union{String,Nothing}`: Specifies the accepted encodings for the response, such as `"gzip"`. Defaults to `nothing` if not set.
-- `ssl_verifypeer::Bool`: Indicates whether SSL certificates should be verified (`true`) or not (`false`).
-- `verbose::Bool`: When `true`, enables detailed output from Curl, useful for debugging purposes.
+
+
+# - `method::String`: Specifies the HTTP method for the request (e.g., `"GET"`, `"POST"`).
+# - `url::String`: The target URL for the HTTP request.
+# - `headers::Vector{Pair{String, String}}`: A list of header key-value pairs to include in the request.
+# - `body::Vector{UInt8}`: The body of the request, represented as a vector of bytes.
+# - `connect_timeout::Real`: Timeout in seconds for establishing a connection.
+# - `read_timeout::Real`: Timeout in seconds for reading the response.
+# - `interface::Union{String,Nothing}`: Specifies a particular network interface to use for the request, or `nothing` to use the default.
+# - `proxy::Union{String,Nothing}`: Specifies a proxy server to use for the request, or `nothing` to bypass proxy settings.
+# - `accept_encoding::Union{String,Nothing}`: Specifies the accepted encodings for the response, such as `"gzip"`. Defaults to `nothing` if not set.
+# - `ssl_verifypeer::Bool`: Indicates whether SSL certificates should be verified (`true`) or not (`false`).
+# - `verbose::Bool`: When `true`, enables detailed output from Curl, useful for debugging purposes.
 """
 struct CurlRequest
     method::String
@@ -283,7 +313,7 @@ end
 """
     CurlStatusError{code} <: Exception
 
-Type that is returned if [`curl_request`](@ref) fails on the HTTP side.
+Type wrapping HTTP error codes. Returned from [`curl_request`](@ref) when an HTTP error occurs.
 
 ## Fields
 - `code::Int64`: The HTTP error code (see [`HTTP_STATUS_CODES`](@ref)).
