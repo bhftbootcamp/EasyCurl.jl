@@ -158,6 +158,13 @@ An HTTP response object returned on a request completion. Constructed from a [`C
 - `headers::Vector{Pair{String,String}}`: Headers received in the HTTP response.
 - `body::Vector{UInt8}`: The response body as a vector of bytes.
 
+## Accessors
+
+- `curl_status(x::CurlResponse)` -> `Int64`: Returns the HTTP status code.
+- `curl_request_time(x::CurlResponse)` -> `Float64`: Returns the request time.
+- `curl_headers(x::CurlResponse)` -> `Vector{Pair{String,String}}`: Returns the headers.
+- `curl_body(x::CurlResponse)` -> `Vector{UInt8}`: Returns the response body.
+
 See also: [`curl_status`](@ref), [`curl_request_time`](@ref), [`curl_headers`](@ref), [`curl_body`](@ref), [`curl_iserror`](@ref)
 """
 struct CurlResponse
@@ -194,27 +201,12 @@ function Base.show(io::IO, x::CurlResponse)
     end
 end
 
-"""
-    curl_status(x::CurlResponse) -> Int64
-
-Returns the HTTP status code from a [`CurlResponse`](@ref) object.
-"""
 curl_status(x::CurlResponse) = status(x)
 status(x::CurlResponse) = x.status
 
-"""
-    curl_request_time(x::CurlResponse) -> Float64
-
-Returns the request time from a [`CurlResponse`](@ref) object.
-"""
 curl_request_time(x::CurlResponse) = request_time(x)
 request_time(x::CurlResponse) = x.request_time
 
-"""
-    curl_headers(x::CurlResponse) -> Vector{Pair{String,String}}
-
-Returns the HTTP headers from a [`CurlResponse`](@ref) object.
-"""
 curl_headers(x::CurlResponse) = headers(x)
 headers(x::CurlResponse) = x.headers
 
@@ -226,19 +218,9 @@ function headers(x::CurlResponse, key::AbstractString)
     return h
 end
 
-"""
-    curl_body(x::CurlResponse) -> Vector{UInt8}
-
-Returns the response body from a [`CurlResponse`](@ref) object.
-"""
 curl_body(x::CurlResponse) = body(x)
 body(x::CurlResponse) = x.body
 
-"""
-    curl_iserror(x::CurlResponse) -> Bool
-
-Checks whether [`CurlResponse`](@ref) contains an errorneous HTTP status code (>= 400).
-"""
 curl_iserror(x::CurlResponse) = iserror(x.status)
 iserror(x::CurlResponse) = x.status >= 400
 
