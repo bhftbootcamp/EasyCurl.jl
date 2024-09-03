@@ -16,10 +16,11 @@ curl_delete
 ```@docs
 CurlClient
 CurlRequest
+CurlContext
 CurlResponse
 ```
 
-## Utils
+## Utilities
 
 ```@docs
 EasyCurl.urlencode

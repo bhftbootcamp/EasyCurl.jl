@@ -6,7 +6,7 @@ EasyCurl.DEFAULT_READ_TIMEOUT
 EasyCurl.MAX_REDIRECTIONS
 ```
 
-## HTTP status codes
+## Supported HTTP status codes
 
 ```@docs
 EasyCurl.HTTP_STATUS_CODES

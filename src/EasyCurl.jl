@@ -16,6 +16,7 @@ export curl_body,
     curl_iserror
 
 export CurlClient,
+    CurlContext,
     CurlRequest,
     CurlResponse,
     CurlError,
@@ -101,7 +102,21 @@ end
 function Base.showerror(io::IO, e::CurlError)
     print(io, "CurlError{$(Int64(e.code))}(", e.message, ")")
 end
+"""
+    CurlContext
 
+A service object for managing the state of a Curl request.
+
+## Fields
+
+- `curl_slist_ptr::Ptr{Nothing}`: A pointer to a linked list of headers.
+- `curl_status::Vector{Clong}`: The HTTP status code of the response.
+- `curl_total_time::Vector{Cdouble}`: The time taken for the HTTP request in seconds.
+- `curl_active::Vector{Cint}`: The number of active requests.
+- `byte_received::UInt64`: The number of bytes received.
+- `headers::IOBuffer`: The headers received in the HTTP response.
+- `body::IOBuffer`: The body of the response.
+"""
 mutable struct CurlContext
     curl_slist_ptr::Ptr{Nothing}
     curl_status::Vector{Clong}
@@ -134,7 +149,7 @@ end
 """
     CurlResponse(x::CurlContext)
 
-An HTTP response object returned on a HTTP request completion.
+An HTTP response object returned on a request completion. Constructed from a [`CurlContext`](@ref) object.
 
 ## Fields
 
@@ -498,9 +513,9 @@ Send a `url` HTTP CurlRequest using as `method` one of `"GET"`, `"POST"`, etc. a
 
 ```julia-repl
 julia> headers = Pair{String,String}[
-    "User-Agent" => "EasyCurl.jl",
-    "Content-Type" => "application/json"
-]
+           "User-Agent" => "EasyCurl.jl",
+           "Content-Type" => "application/json"
+       ]
 
 julia> response = curl_request("POST", "http://httpbin.org/post", headers = headers, query = "qry=你好嗎",
     body = "{\\"data\\":\\"hi\\"}", interface = "en0", read_timeout = 5, connect_timeout = 10, retry = 10)
@@ -610,9 +625,9 @@ Shortcut for [`curl_request`](@ref) function, work similar to `curl_request("GET
 
 ```julia-repl
 julia> headers = Pair{String,String}[
-    "User-Agent" => "EasyCurl.jl",
-    "Content-Type" => "application/json"
-]
+           "User-Agent" => "EasyCurl.jl",
+           "Content-Type" => "application/json"
+       ]
 
 julia> response = curl_get("http://httpbin.org/get", headers = headers,
     query = Dict{String,String}("qry" => "你好嗎"))
@@ -650,9 +665,9 @@ Shortcut for [`curl_request`](@ref) function, work similar to `curl_request("HEA
 
 ```julia-repl
 julia> headers = Pair{String,String}[
-    "User-Agent" => "EasyCurl.jl",
-    "Content-Type" => "application/json"
-]
+           "User-Agent" => "EasyCurl.jl",
+           "Content-Type" => "application/json"
+       ]
 
 julia> response = curl_head("http://httpbin.org/get", headers = headers,
     query = "qry=你好嗎", interface = "0.0.0.0")
@@ -676,9 +691,9 @@ Shortcut for [`curl_request`](@ref) function, work similar to `curl_request("POS
 
 ```julia-repl
 julia> headers = Pair{String,String}[
-    "User-Agent" => "EasyCurl.jl",
-    "Content-Type" => "application/json"
-]
+           "User-Agent" => "EasyCurl.jl",
+           "Content-Type" => "application/json"
+       ]
 
 julia> response = curl_post("http://httpbin.org/post", headers = headers,
     query = "qry=你好嗎", body = "{\\"data\\":\\"hi\\"}")
@@ -723,9 +738,9 @@ Shortcut for [`curl_request`](@ref) function, work similar to `curl_request("PUT
 
 ```julia-repl
 julia> headers = Pair{String,String}[
-    "User-Agent" => "EasyCurl.jl",
-    "Content-Type" => "application/json"
-]
+           "User-Agent" => "EasyCurl.jl",
+           "Content-Type" => "application/json"
+       ]
 
 julia> response = curl_put("http://httpbin.org/put", headers = headers,
     query = "qry=你好嗎", body = "{\\"data\\":\\"hi\\"}")
@@ -770,9 +785,9 @@ Shortcut for [`curl_request`](@ref) function, work similar to `curl_request("PAT
 
 ```julia-repl
 julia> headers = Pair{String,String}[
-    "User-Agent" => "EasyCurl.jl",
-    "Content-Type" => "application/json"
-]
+           "User-Agent" => "EasyCurl.jl",
+           "Content-Type" => "application/json"
+       ]
 
 julia> response = curl_patch("http://httpbin.org/patch", headers = headers,
     query = "qry=你好嗎", body = "{\\"data\\":\\"hi\\"}")
@@ -817,9 +832,9 @@ Shortcut for [`curl_request`](@ref) function, work similar to `curl_request("DEL
 
 ```julia-repl
 julia> headers = Pair{String,String}[
-    "User-Agent" => "EasyCurl.jl",
-    "Content-Type" => "application/json"
-]
+           "User-Agent" => "EasyCurl.jl",
+           "Content-Type" => "application/json"
+       ]
 
 julia> response = curl_delete("http://httpbin.org/delete", headers = headers,
     query = "qry=你好嗎", body = "{\\"data\\":\\"hi\\"}")
