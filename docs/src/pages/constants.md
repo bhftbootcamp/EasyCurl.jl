@@ -1,3 +1,11 @@
+## Default connection options
+
+```@docs
+EasyCurl.DEFAULT_CONNECT_TIMEOUT
+EasyCurl.DEFAULT_READ_TIMEOUT
+EasyCurl.MAX_REDIRECTIONS
+```
+
 ## HTTP status codes
 
 ```@docs

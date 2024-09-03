@@ -102,22 +102,6 @@ function Base.showerror(io::IO, e::CurlError)
     print(io, "CurlError{$(Int64(e.code))}(", e.message, ")")
 end
 
-"""
-    CurlContext
-
-Service structure for interfacing with libcurl. Contains the necessary fields for libcurl to operate.
-Used to store the state of a request and response.
-
-## Fields
-
-- `curl_slist_ptr::Ptr{Nothing}`: The libcurl slist pointer.
-- `curl_status::Vector{Clong}`: The HTTP status code of the response.
-- `curl_total_time::Vector{Cdouble}`: The total time taken for the request.
-- `curl_active::Vector{Cint}`: The number of active requests.
-- `byte_received::UInt64`: The number of bytes received.
-- `headers::IOBuffer`: The headers received in the response.
-- `body::IOBuffer`: The body of the response.
-"""
 mutable struct CurlContext
     curl_slist_ptr::Ptr{Nothing}
     curl_status::Vector{Clong}
@@ -150,7 +134,7 @@ end
 """
     CurlResponse(x::CurlContext)
 
-An HTTP response object. Constructed from a [`CurlContext`](@ref) object.
+An HTTP response object returned on a HTTP request completion.
 
 ## Fields
 
@@ -592,6 +576,22 @@ function request(
     end
 end
 
+"""
+    curl_open(f::Function, x...; kw...)
+
+A helper function for executing a batch of curl requests, using the same client. Optionally 
+configure the client (see [`CurlClient`](@ref) for more details).
+
+## Examples
+
+```julia-repl
+julia> curl_open() do client
+           response = curl_request(client, "GET", "http://httpbin.org/get")
+           println(curl_status(response))
+       end
+200
+```
+"""
 function curl_open(f::Function, x...; kw...)
     c = CurlClient(x...; kw...)
     try

@@ -1,29 +1,39 @@
 ## Client Requests
 
 ```@docs
+curl_open
 curl_request
 curl_get
-curl_put
-curl_post
-curl_head
 curl_patch
+curl_post
+curl_put
+curl_head
 curl_delete
 ```
 
-## Request/Response types
+## Client/Request/Response types
 
 ```@docs
+CurlClient
 CurlRequest
 CurlResponse
+```
+
+## Utils
+
+```@docs
+EasyCurl.urlencode
+EasyCurl.urldecode
+EasyCurl.joinurl
 ```
 
 ## Advanced Topics
 
 ```@docs
-curl_status
-curl_request_time
-curl_headers
 curl_body
+curl_status
+curl_headers
+curl_request_time
 curl_iserror
-EasyCurl.joinurl
 ```
+
