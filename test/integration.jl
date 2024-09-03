@@ -1,6 +1,6 @@
 #__ integration
 
-import EasyCurl: encode_query_params
+import EasyCurl: urlencode_query_params
 
 const headers = [
     "User-Agent" => "EasyCurl.jl",
