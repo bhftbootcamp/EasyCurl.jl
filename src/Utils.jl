@@ -1,3 +1,5 @@
+#__ Utils
+
 """
     EasyCurl.urlencode(s::AbstractString)
 
@@ -99,21 +101,24 @@ function joinurl(basepart::AbstractString, parts::AbstractString...)::String
     return join([basepart, parts...], "/")
 end
 
-function parse_headers(headers::AbstractString)
-    matches = match.(r"^(.*?):\s*(.*?)$", split(headers, "\r\n"))
-    result = Pair{String,String}[]
-    for m in matches
+function parse_headers(x::AbstractString)
+    hdrs = Pair{String,String}[]
+    for m in match.(r"^(.*?):\s*(.*?)$", split(x, "\r\n"))
         isnothing(m) && continue
-        push!(result, lowercase(m[1]) => m[2])
+        push!(hdrs, lowercase(m[1]) => m[2])
     end
-    return result
+    return hdrs
+end
+
+function parse_headers(x::Vector{UInt8})
+    return parse_headers(unsafe_string(pointer(x), length(x)))
 end
 
 to_query_decode(curl, ::Nothing) = ""
 to_query_decode(curl, x::S) where {S<:AbstractString} = x
 to_query_decode(curl, x::AbstractDict) = urlencode_query_params(curl, x)
 
-function rq_url(curl, url::AbstractString, query)
+function req_url(curl, url::AbstractString, query)
     kv = to_query_decode(curl, query)
     return isempty(kv) ? url : url * "?" * kv
 end
