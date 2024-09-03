@@ -105,7 +105,7 @@ headers = Pair{String,String}[
 curl_client = CurlClient()
 
 # Perform a GET request
-response = curl_do(
+response = curl_request(
     curl_client,
     "GET",
     "http://httpbin.org/get",

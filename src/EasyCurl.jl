@@ -1,6 +1,6 @@
 module EasyCurl
 
-export curl_do,
+export curl_open,
     curl_request,
     curl_get,
     curl_patch,
@@ -252,19 +252,17 @@ Represents an HTTP request object.
 
 - `method::String`: The HTTP method for the request (e.g., `"GET"`, `"POST"`).
 - `url::String`: The target URL for the HTTP request.
-
-
-# - `method::String`: Specifies the HTTP method for the request (e.g., `"GET"`, `"POST"`).
-# - `url::String`: The target URL for the HTTP request.
-# - `headers::Vector{Pair{String, String}}`: A list of header key-value pairs to include in the request.
-# - `body::Vector{UInt8}`: The body of the request, represented as a vector of bytes.
-# - `connect_timeout::Real`: Timeout in seconds for establishing a connection.
-# - `read_timeout::Real`: Timeout in seconds for reading the response.
-# - `interface::Union{String,Nothing}`: Specifies a particular network interface to use for the request, or `nothing` to use the default.
-# - `proxy::Union{String,Nothing}`: Specifies a proxy server to use for the request, or `nothing` to bypass proxy settings.
-# - `accept_encoding::Union{String,Nothing}`: Specifies the accepted encodings for the response, such as `"gzip"`. Defaults to `nothing` if not set.
-# - `ssl_verifypeer::Bool`: Indicates whether SSL certificates should be verified (`true`) or not (`false`).
-# - `verbose::Bool`: When `true`, enables detailed output from Curl, useful for debugging purposes.
+- `method::String`: Specifies the HTTP method for the request (e.g., `"GET"`, `"POST"`).
+- `url::String`: The target URL for the HTTP request.
+- `headers::Vector{Pair{String, String}}`: A list of header key-value pairs to include in the request.
+- `body::Vector{UInt8}`: The body of the request, represented as a vector of bytes.
+- `connect_timeout::Real`: Timeout in seconds for establishing a connection.
+- `read_timeout::Real`: Timeout in seconds for reading the response.
+- `interface::Union{String,Nothing}`: Specifies a particular network interface to use for the request, or `nothing` to use the default.
+- `proxy::Union{String,Nothing}`: Specifies a proxy server to use for the request, or `nothing` to bypass proxy settings.
+- `accept_encoding::Union{String,Nothing}`: Specifies the accepted encodings for the response, such as `"gzip"`. Defaults to `nothing` if not set.
+- `ssl_verifypeer::Bool`: Indicates whether SSL certificates should be verified (`true`) or not (`false`).
+- `verbose::Bool`: When `true`, enables detailed output from Curl, useful for debugging purposes.
 """
 struct CurlRequest
     method::String
@@ -551,20 +549,15 @@ julia> curl_body(response) |> String |> print
 }
 ```
 """
-function curl_request(method::AbstractString, url::AbstractString; kw...)
-    return request(method, url; kw...)
+function curl_request(x...; kw...)
+    return request(x...; kw...)
 end
 
 function request(method::AbstractString, url::AbstractString; kw...)
-    c = CurlClient()
-    try
-        curl_do(c, method, url; kw...)
-    finally
-        close(c)
-    end
+    return curl_open(c -> request(c, method, url; kw...))
 end
 
-function curl_do(
+function request(
     curl_client::CurlClient,
     method::AbstractString,
     url::AbstractString;
@@ -596,6 +589,15 @@ function curl_do(
         sleep(0.25)
         retry >= 0 && @goto retry
         rethrow()
+    end
+end
+
+function curl_open(f::Function, x...; kw...)
+    c = CurlClient(x...; kw...)
+    try
+        f(c)
+    finally
+        close(c)
     end
 end
 
