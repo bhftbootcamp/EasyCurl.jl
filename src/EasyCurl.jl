@@ -1,6 +1,7 @@
 module EasyCurl
 
-export curl_request,
+export curl_open,
+    curl_request,
     curl_get,
     curl_patch,
     curl_post,
@@ -14,66 +15,104 @@ export curl_body,
     curl_request_time,
     curl_iserror
 
-export EasyCurlError,
-    EasyCurlStatusError
+export CurlClient,
+    CurlRequest,
+    CurlResponse,
+    CurlError,
+    CurlStatusError
 
 using LibCURL
 
+"""
+    DEFAULT_CONNECT_TIMEOUT = 60
+
+The default connection timeout for an Curl Client in seconds.
+"""
+const DEFAULT_CONNECT_TIMEOUT = 60
+
+"""
+    DEFAULT_READ_TIMEOUT = 300
+
+The default read timeout for an Curl Client in seconds.
+"""
+const DEFAULT_READ_TIMEOUT = 300
+
+"""
+    MAX_REDIRECTIONS = 5
+
+The maximum number of redirections allowed for a request.
+"""
 const MAX_REDIRECTIONS = 5
-const DEFAULT_CONNECT_TIMEOUT = 60  # seconds
-const DEFAULT_READ_TIMEOUT = 300  # seconds
 
 include("Static.jl")
 include("Utils.jl")
 
 """
-    EasyCurlError{code} <: Exception
+    CurlClient
 
-Type that is returned if [`curl_request`](@ref) fails on the libcurl side.
+Represents a client for making HTTP requests using libcurl. Allows for connection reuse.
 
 ## Fields
-- `code::UInt32`: The error code (see [libcurl error codes](https://curl.se/libcurl/c/libcurl-errors.html)).
+
+- `curl_handle::Ptr{CURL}`: The libcurl easy handle.
+- `multi_handle::Ptr{CURL}`: The libcurl multi handle.
+"""
+struct CurlClient
+    curl_handle::Ptr{CURL}
+    multi_handle::Ptr{CURL}
+
+    CurlClient() = new(curl_easy_init(), curl_multi_init())
+end
+
+function Base.close(c::CurlClient)
+    curl_multi_cleanup(c.multi_handle)
+    curl_easy_cleanup(c.curl_handle)
+end
+
+"""
+    CurlError{code} <: Exception
+
+Type wrapping LibCURL error codes. Returned from [`curl_request`](@ref) when a libcurl error occurs.
+
+## Fields
+- `code::UInt32`: The LibCURL error code (see [libcurl error codes](https://curl.se/libcurl/c/libcurl-errors.html)).
 - `message::String`: The error message.
 
 ## Examples
 ```julia-repl
 julia> curl_request("GET", "http://httpbin.org/status/400", interface = "9.9.9.9")
-ERROR: EasyCurlError{45}(Failed binding local connection end)
+ERROR: CurlError{45}(Failed binding local connection end)
 [...]
 
 julia> curl_request("GET", "http://httpbin.org/status/400", interface = "")
-ERROR: EasyCurlError{7}(Couldn't connect to server)
+ERROR: CurlError{7}(Couldn't connect to server)
 [...]
 ```
 """
-struct EasyCurlError{code} <: Exception
-    code::UInt32
+struct CurlError{code} <: Exception
+    code::UInt64
     message::String
 
-    function EasyCurlError(code::UInt32, message::String)
+    function CurlError(code::Integer, message::String)
         return new{code}(code, message)
     end
 end
 
-function Base.showerror(io::IO, e::EasyCurlError)
-    return print(io, "EasyCurlError{$(e.code)}(", e.message, ")")
+function Base.showerror(io::IO, e::CurlError)
+    print(io, "CurlError{$(Int64(e.code))}(", e.message, ")")
 end
 
-const Header = Pair{String,String}
-
-#__ struct
-
-mutable struct CurlResponse
-    curl_slist::Ptr{Nothing}
+mutable struct CurlContext
+    curl_slist_ptr::Ptr{Nothing}
     curl_status::Vector{Clong}
     curl_total_time::Vector{Cdouble}
     curl_active::Vector{Cint}
-    rx_count::UInt64
-    b_data::IOBuffer
-    h_data::IOBuffer
+    byte_received::UInt64
+    headers::IOBuffer
+    body::IOBuffer
 
-    function CurlResponse()
-        return new(
+    function CurlContext()
+        ctx = new(
             C_NULL,
             Vector{Clong}(undef, 1),
             Vector{Cdouble}(undef, 1),
@@ -82,18 +121,20 @@ mutable struct CurlResponse
             IOBuffer(),
             IOBuffer(),
         )
+        finalizer(close, ctx)
+        return ctx
     end
 end
 
-status(x::CurlResponse) = x.curl_status[1]
-request_time(x::CurlResponse) = x.curl_total_time[1]
-headers(x::CurlResponse) = parse_headers(String(take!(x.h_data)))
-body(x::CurlResponse) = take!(x.b_data)
+function Base.close(x::CurlContext)
+    close(x.headers)
+    close(x.body)
+end
 
 """
-    EasyCurl.Response(x::CurlResponse)
+    CurlResponse(x::CurlContext)
 
-Represents an HTTP response object that can be received from a `CurlResponse`.
+An HTTP response object returned on a request completion.
 
 ## Fields
 
@@ -102,71 +143,33 @@ Represents an HTTP response object that can be received from a `CurlResponse`.
 - `headers::Vector{Pair{String,String}}`: Headers received in the HTTP response.
 - `body::Vector{UInt8}`: The response body as a vector of bytes.
 
-See also: [`curl_status`](@ref), [`curl_request_time`](@ref), [`curl_headers`](@ref), [`curl_body`](@ref), [`curl_iserror`](@ref)
+## Accessors
+
+- `curl_status(x::CurlResponse)` -> `Int64`: Returns the HTTP status code.
+- `curl_request_time(x::CurlResponse)` -> `Float64`: Returns the request time.
+- `curl_headers(x::CurlResponse)` -> `Vector{Pair{String,String}}`: Returns the headers.
+- `curl_body(x::CurlResponse)` -> `Vector{UInt8}`: Returns the response body.
 """
-struct Response
+struct CurlResponse
     status::Int64
     request_time::Float64
     headers::Vector{Pair{String,String}}
     body::Vector{UInt8}
 
-    function Response(x::CurlResponse)
-        return new(status(x), request_time(x), headers(x), body(x))
+    function CurlResponse(x::CurlContext)
+        return new(
+            x.curl_status[1],
+            x.curl_total_time[1],
+            parse_headers(take!(x.headers)),
+            take!(x.body),
+        )
     end
 end
 
-"""
-    curl_status(x::Response) -> Int64
-
-Extracts the HTTP status code from a [`EasyCurl.Response`](@ref) object.
-"""
-curl_status(x::Response) = status(x)
-status(x::Response) = x.status
-
-"""
-    curl_request_time(x::Response) -> Float64
-
-Extracts the request time from a [`EasyCurl.Response`](@ref) object.
-"""
-curl_request_time(x::Response) = request_time(x)
-request_time(x::Response) = x.request_time
-
-"""
-    curl_headers(x::Response) -> Vector{Pair{String,String}}
-
-Parses the HTTP headers from a [`EasyCurl.Response`](@ref) object.
-"""
-curl_headers(x::Response) = headers(x)
-headers(x::Response) = x.headers
-
-"""
-    curl_body(x::Response) -> Vector{UInt8}
-
-Extracts the response body from a [`EasyCurl.Response`](@ref) object.
-"""
-curl_body(x::Response) = body(x)
-body(x::Response) = x.body
-
-"""
-    curl_iserror(x::Response) -> Bool
-
-Check that [`EasyCurl.Response`](@ref) have an error status
-"""
-curl_iserror(x::Response) = iserror(x)
-iserror(x::Response) = x.status >= 300
-
-function headers(x::Response, key::AbstractString)
-    hdrs = String[]
-    for (k, v) in x.headers
-        lowercase(key) == lowercase(k) && push!(hdrs, v)
-    end
-    return hdrs
-end
-
-function Base.show(io::IO, x::Response)
-    println(io, Response)
+function Base.show(io::IO, x::CurlResponse)
+    println(io, CurlResponse)
     println(io, "\"\"\"")
-    println(io, "HTTP/1.1 $(x.status) $(get(HTTP_STATUS_CODES, x.status, ""))")
+    println(io, "HTTP/1.1 $(x.status) $(Base.get(HTTP_STATUS_CODES, x.status, ""))")
     for (k, v) in x.headers
         println(io, "$k: '$v'")
     end
@@ -181,29 +184,51 @@ function Base.show(io::IO, x::Response)
     end
 end
 
+curl_status(x::CurlResponse) = status(x)
+status(x::CurlResponse) = x.status
+
+curl_request_time(x::CurlResponse) = request_time(x)
+request_time(x::CurlResponse) = x.request_time
+
+curl_headers(x::CurlResponse) = headers(x)
+headers(x::CurlResponse) = x.headers
+
+function headers(x::CurlResponse, key::AbstractString)
+    h = String[]
+    for (k, v) in x.headers
+        lowercase(key) == lowercase(k) && push!(h, v)
+    end
+    return h
+end
+
+curl_body(x::CurlResponse) = body(x)
+body(x::CurlResponse) = x.body
+
+curl_iserror(x::CurlResponse) = iserror(x.status)
+iserror(x::CurlResponse) = x.status >= 400
+
 """
-    Request
+    CurlRequest
 
 Represents an HTTP request object.
 
 ## Fields
 
-- `method::String`: The HTTP request method (e.g. `"GET"`, `"POST"`, etc.).
-- `url::String`: The URL to which the request is sent.
-- `headers::Vector{Pair{String, String}}`: Headers for the HTTP request.
-- `body::Vector{UInt8}`: The request body as a vector of bytes.
-- `connect_timeout::Real`: The connection timeout for the request in seconds.
-- `read_timeout::Real`: The read timeout for the response in seconds.
-- `interface::Union{String, Nothing}`: The network interface to use (or `nothing` for the default).
-- `proxy::Union{String, Nothing}`: The proxy server to use (or `nothing` for no proxy).
-- `accept_encoding::Union{String,Nothing}`: The accepted encoding for the response (e.g., "gzip").
-- `ssl_verifypeer::Bool`: Whether to verify SSL certificates.
-- `verbose::Bool`: Enables verbose output from EasyCurl for debugging.
-- `rq_curl::Ptr{CURL}`: A pointer to a EasyCurl handle for the request.
-- `rq_multi::Ptr{CURL}`: A pointer to a EasyCurl multi handle for the request.
-- `response::CurlResponse`: The HTTP response associated with this request.
+- `method::String`: The HTTP method for the request (e.g., `"GET"`, `"POST"`).
+- `url::String`: The target URL for the HTTP request.
+- `method::String`: Specifies the HTTP method for the request (e.g., `"GET"`, `"POST"`).
+- `url::String`: The target URL for the HTTP request.
+- `headers::Vector{Pair{String, String}}`: A list of header key-value pairs to include in the request.
+- `body::Vector{UInt8}`: The body of the request, represented as a vector of bytes.
+- `connect_timeout::Real`: Timeout in seconds for establishing a connection.
+- `read_timeout::Real`: Timeout in seconds for reading the response.
+- `interface::Union{String,Nothing}`: Specifies a particular network interface to use for the request, or `nothing` to use the default.
+- `proxy::Union{String,Nothing}`: Specifies a proxy server to use for the request, or `nothing` to bypass proxy settings.
+- `accept_encoding::Union{String,Nothing}`: Specifies the accepted encodings for the response, such as `"gzip"`. Defaults to `nothing` if not set.
+- `ssl_verifypeer::Bool`: Indicates whether SSL certificates should be verified (`true`) or not (`false`).
+- `verbose::Bool`: When `true`, enables detailed output from Curl, useful for debugging purposes.
 """
-struct Request
+struct CurlRequest
     method::String
     url::String
     headers::Vector{Pair{String,String}}
@@ -215,80 +240,104 @@ struct Request
     accept_encoding::Union{String,Nothing}
     ssl_verifypeer::Bool
     verbose::Bool
-    rq_curl::Ptr{CURL}
-    rq_multi::Ptr{CURL}
-    response::CurlResponse
+    ctx::CurlContext
+
+    function CurlRequest(
+        method::AbstractString,
+        url::AbstractString;
+        headers::Vector{Pair{String,String}} = Pair{String,String}[],
+        body::Vector{UInt8} = UInt8[],
+        connect_timeout::Real = DEFAULT_CONNECT_TIMEOUT,
+        read_timeout::Real = DEFAULT_READ_TIMEOUT,
+        interface::Union{String,Nothing} = nothing,
+        proxy::Union{String,Nothing} = nothing,
+        accept_encoding::Union{String,Nothing} = nothing,
+        ssl_verifypeer::Bool = true,
+        verbose::Bool = false,
+    )
+        return new(
+            method,
+            url,
+            headers,
+            body,
+            connect_timeout,
+            read_timeout,
+            interface,
+            proxy,
+            accept_encoding,
+            ssl_verifypeer,
+            verbose,
+            CurlContext(),
+        )
+    end
 end
 
 """
-    EasyCurlStatusError{code} <: Exception
+    CurlStatusError{code} <: Exception
 
-Type that is returned if [`curl_request`](@ref) fails on the HTTP side.
+Type wrapping HTTP error codes. Returned from [`curl_request`](@ref) when an HTTP error occurs.
 
 ## Fields
 - `code::Int64`: The HTTP error code (see [`HTTP_STATUS_CODES`](@ref)).
 - `message::String`: The error message.
-- `response::Response`: The HTTP response object.
+- `response::CurlResponse`: The HTTP response object.
 
 ## Examples
 ```julia-repl
 julia> curl_request("GET", "http://httpbin.org/status/400", interface = "0.0.0.0")
-ERROR: EasyCurlStatusError{400}(BAD_REQUEST)
+ERROR: CurlStatusError{400}(BAD_REQUEST)
 [...]
 
 julia> curl_request("GET", "http://httpbin.org/status/404", interface = "0.0.0.0")
-ERROR: EasyCurlStatusError{404}(NOT_FOUND)
+ERROR: CurlStatusError{404}(NOT_FOUND)
 [...]
 ```
 """
-struct EasyCurlStatusError{code} <: Exception
+struct CurlStatusError{code} <: Exception
     code::Int64
     message::String
-    response::Response
+    response::CurlResponse
 
-    function EasyCurlStatusError(x::Response)
-        return new{status(x)}(status(x), get(HTTP_STATUS_CODES, status(x), HTTP_STATUS_CODES[500]), x)
+    function CurlStatusError(x::CurlResponse)
+        return new{status(x)}(status(x), Base.get(HTTP_STATUS_CODES, status(x), HTTP_STATUS_CODES[500]), x)
     end
 end
 
-function Base.showerror(io::IO, e::EasyCurlStatusError)
-    return print(io, "EasyCurlStatusError{$(e.code)}(", e.message, ")")
+function Base.showerror(io::IO, e::CurlStatusError)
+    print(io, "CurlStatusError{$(e.code)}(", e.message, ")")
 end
-
-# Backward compatibility
-const StatusError = EasyCurlStatusError
 
 #__ libcurl
 
 function curl_write_cb(curlbuf::Ptr{UInt8}, s::Csize_t, n::Csize_t, p_ctxt::Ptr{Cvoid})
-    response = unsafe_pointer_to_objref(p_ctxt)
+    result = unsafe_pointer_to_objref(p_ctxt)
     sz = s * n
-    response.rx_count += sz
-    unsafe_write(response.b_data, curlbuf, sz)
+    result.byte_received += sz
+    unsafe_write(result.body, curlbuf, sz)
     return sz::Csize_t
 end
 
 function curl_header_cb(curlbuf::Ptr{UInt8}, s::Csize_t, n::Csize_t, p_ctxt::Ptr{Cvoid})
-    response = unsafe_pointer_to_objref(p_ctxt)
+    result = unsafe_pointer_to_objref(p_ctxt)
     sz = s * n
-    unsafe_write(response.h_data, curlbuf, sz)
+    unsafe_write(result.headers, curlbuf, sz)
     return sz::Csize_t
 end
 
-function curl_setup_rq(request::Request)
-    curl_easy_setopt(request.rq_curl, CURLOPT_URL, request.url)
-    curl_easy_setopt(request.rq_curl, CURLOPT_CAINFO, LibCURL.cacert)
-    curl_easy_setopt(request.rq_curl, CURLOPT_FOLLOWLOCATION, 1)
-    curl_easy_setopt(request.rq_curl, CURLOPT_MAXREDIRS, MAX_REDIRECTIONS)
-    curl_easy_setopt(request.rq_curl, CURLOPT_CONNECTTIMEOUT, request.connect_timeout)
-    curl_easy_setopt(request.rq_curl, CURLOPT_TIMEOUT, request.read_timeout)
-    curl_easy_setopt(request.rq_curl, CURLOPT_WRITEFUNCTION, curl_write_cb)
-    curl_easy_setopt(request.rq_curl, CURLOPT_INTERFACE, something(request.interface, C_NULL))
-    curl_easy_setopt(request.rq_curl, CURLOPT_ACCEPT_ENCODING, something(request.accept_encoding, C_NULL))
-    curl_easy_setopt(request.rq_curl, CURLOPT_SSL_VERIFYPEER, request.ssl_verifypeer)
-    curl_easy_setopt(request.rq_curl, CURLOPT_USERAGENT, "EasyCurl/1.2.0")
-    curl_easy_setopt(request.rq_curl, CURLOPT_PROXY, something(request.proxy, C_NULL))
-    curl_easy_setopt(request.rq_curl, CURLOPT_VERBOSE, request.verbose)
+function curl_setup_req(c::CurlClient, r::CurlRequest)
+    curl_easy_setopt(c.curl_handle, CURLOPT_URL, r.url)
+    curl_easy_setopt(c.curl_handle, CURLOPT_CAINFO, LibCURL.cacert)
+    curl_easy_setopt(c.curl_handle, CURLOPT_FOLLOWLOCATION, 1)
+    curl_easy_setopt(c.curl_handle, CURLOPT_MAXREDIRS, MAX_REDIRECTIONS)
+    curl_easy_setopt(c.curl_handle, CURLOPT_CONNECTTIMEOUT, r.connect_timeout)
+    curl_easy_setopt(c.curl_handle, CURLOPT_TIMEOUT, r.read_timeout)
+    curl_easy_setopt(c.curl_handle, CURLOPT_WRITEFUNCTION, curl_write_cb)
+    curl_easy_setopt(c.curl_handle, CURLOPT_INTERFACE, something(r.interface, C_NULL))
+    curl_easy_setopt(c.curl_handle, CURLOPT_ACCEPT_ENCODING, something(r.accept_encoding, C_NULL))
+    curl_easy_setopt(c.curl_handle, CURLOPT_SSL_VERIFYPEER, r.ssl_verifypeer)
+    curl_easy_setopt(c.curl_handle, CURLOPT_USERAGENT, "EasyCurl/3.0.0")
+    curl_easy_setopt(c.curl_handle, CURLOPT_PROXY, something(r.proxy, C_NULL))
+    curl_easy_setopt(c.curl_handle, CURLOPT_VERBOSE, r.verbose)
 
     c_curl_write_cb =
         @cfunction(curl_write_cb, Csize_t, (Ptr{UInt8}, Csize_t, Csize_t, Ptr{Cvoid}))
@@ -296,141 +345,119 @@ function curl_setup_rq(request::Request)
     c_curl_header_cb =
         @cfunction(curl_header_cb, Csize_t, (Ptr{UInt8}, Csize_t, Csize_t, Ptr{Cvoid}))
 
-    curl_easy_setopt(request.rq_curl, CURLOPT_WRITEFUNCTION, c_curl_write_cb)
-    curl_easy_setopt(request.rq_curl, CURLOPT_WRITEDATA, pointer_from_objref(request.response))
+    curl_easy_setopt(c.curl_handle, CURLOPT_WRITEFUNCTION, c_curl_write_cb)
+    curl_easy_setopt(c.curl_handle, CURLOPT_WRITEDATA, pointer_from_objref(r.ctx))
 
-    curl_easy_setopt(request.rq_curl, CURLOPT_HEADERFUNCTION, c_curl_header_cb)
-    curl_easy_setopt(request.rq_curl, CURLOPT_HEADERDATA, pointer_from_objref(request.response))
+    curl_easy_setopt(c.curl_handle, CURLOPT_HEADERFUNCTION, c_curl_header_cb)
+    curl_easy_setopt(c.curl_handle, CURLOPT_HEADERDATA, pointer_from_objref(r.ctx))
 
-    for (k,v) in request.headers
-        request.response.curl_slist =
-            curl_slist_append(request.response.curl_slist, k * ": " * v)
+    for (k,v) in r.headers
+        r.ctx.curl_slist_ptr =
+            curl_slist_append(r.ctx.curl_slist_ptr, k * ": " * v)
     end
 
-    curl_easy_setopt(request.rq_curl, CURLOPT_HTTPHEADER, request.response.curl_slist)
+    curl_easy_setopt(c.curl_handle, CURLOPT_HTTPHEADER, r.ctx.curl_slist_ptr)
 end
 
-mutable struct CurlMsg
+mutable struct CurlMsgCtx
     msg::CURLMSG
     easy_handle::Ptr{CURL}
     data::Ptr{Any}
 end
 
-function curl_rq_handle(request::Request)
+function curl_req_handle(c::CurlClient, r::CurlRequest)
     try
-        curl_multi_add_handle(request.rq_multi, request.rq_curl)
-        curl_multi_perform(request.rq_multi, request.response.curl_active)
+        curl_multi_add_handle(c.multi_handle, c.curl_handle)
+        curl_multi_perform(c.multi_handle, r.ctx.curl_active)
 
-        while (request.response.curl_active[1] > 0)
-            rx_count_before = request.response.rx_count
-            curl_m_code = curl_multi_perform(request.rq_multi, request.response.curl_active)
-            rx_count_after = request.response.rx_count
+        while (r.ctx.curl_active[1] > 0)
+            byte_received_before = r.ctx.byte_received
+            curl_m_code = curl_multi_perform(c.multi_handle, r.ctx.curl_active)
+            byte_received_after = r.ctx.byte_received
             if curl_m_code != CURLE_OK
-                throw(EasyCurlError(curl_m_code, unsafe_string(curl_multi_strerror(curl_m_code))))
+                throw(CurlError(curl_m_code, unsafe_string(curl_multi_strerror(curl_m_code))))
             end
-            if !(rx_count_after > rx_count_before)
+            if !(byte_received_after > byte_received_before)
                 sleep(0.001)
             end
         end
 
         msgs_in_queue = Vector{Int32}(undef, 1)
-        ptr_msg::Ptr{CurlMsg} = curl_multi_info_read(request.rq_multi, msgs_in_queue)
+        ptr_msg::Ptr{CurlMsgCtx} = curl_multi_info_read(c.multi_handle, msgs_in_queue)
 
         while ptr_msg != C_NULL
             msg = unsafe_load(ptr_msg)
-            ptr_msg = curl_multi_info_read(request.rq_multi, msgs_in_queue)
+            ptr_msg = curl_multi_info_read(c.multi_handle, msgs_in_queue)
             msg.msg != CURLMSG_DONE && continue
             curl_code = convert(UInt32, msg.data)
             if curl_code != CURLE_OK
-                throw(EasyCurlError(curl_code, unsafe_string(curl_easy_strerror(curl_code))))
+                throw(CurlError(curl_code, unsafe_string(curl_easy_strerror(curl_code))))
             end
         end
 
-        curl_easy_getinfo(request.rq_curl, CURLINFO_RESPONSE_CODE, request.response.curl_status)
-        curl_easy_getinfo(request.rq_curl, CURLINFO_TOTAL_TIME, request.response.curl_total_time)
+        curl_easy_getinfo(c.curl_handle, CURLINFO_RESPONSE_CODE, r.ctx.curl_status)
+        curl_easy_getinfo(c.curl_handle, CURLINFO_TOTAL_TIME, r.ctx.curl_total_time)
     finally
-        curl_multi_remove_handle(request.rq_multi, request.rq_curl)
-        curl_multi_cleanup(request.rq_multi)
-        curl_slist_free_all(request.response.curl_slist)
-        curl_easy_cleanup(request.rq_curl)
+        curl_multi_remove_handle(c.multi_handle, c.curl_handle)
+        curl_slist_free_all(r.ctx.curl_slist_ptr)
     end
 end
 
-function curl_rq_handle(::Val{:GET}, request::Request)
-    try
-        curl_setup_rq(request)
-        curl_easy_setopt(request.rq_curl, CURLOPT_HTTPGET, 1)
-        curl_rq_handle(request)
-    catch ex
-        rethrow(ex)
-    end
+function curl_req_handle(::Val{:GET}, c::CurlClient, r::CurlRequest)
+    curl_setup_req(c, r)
+    curl_easy_setopt(c.curl_handle, CURLOPT_HTTPGET, 1)
+    curl_req_handle(c, r)
 end
 
-function curl_rq_handle(::Val{:HEAD}, request::Request)
-    try
-        curl_setup_rq(request)
-        curl_easy_setopt(request.rq_curl, CURLOPT_NOBODY, 1);
-        curl_rq_handle(request)
-    catch ex
-        rethrow(ex)
-    end
+function curl_req_handle(::Val{:HEAD}, c::CurlClient, r::CurlRequest)
+    curl_setup_req(c, r)
+    curl_easy_setopt(c.curl_handle, CURLOPT_NOBODY, 1);
+    curl_req_handle(c, r)
 end
 
-function curl_rq_handle(::Val{:POST}, request::Request)
-    try
-        curl_setup_rq(request)
-        curl_easy_setopt(request.rq_curl, CURLOPT_POST, 1)
-        curl_easy_setopt(request.rq_curl, CURLOPT_POSTFIELDSIZE, length(request.body))
-        curl_easy_setopt(request.rq_curl, CURLOPT_COPYPOSTFIELDS, pointer(request.body))
-        curl_rq_handle(request)
-    catch ex
-        rethrow(ex)
-    end
+function curl_req_handle(::Val{:POST}, c::CurlClient, r::CurlRequest)
+    curl_setup_req(c, r)
+    curl_easy_setopt(c.curl_handle, CURLOPT_POST, 1)
+    curl_easy_setopt(c.curl_handle, CURLOPT_POSTFIELDSIZE, length(r.body))
+    curl_easy_setopt(c.curl_handle, CURLOPT_COPYPOSTFIELDS, pointer(r.body))
+    curl_req_handle(c, r)
 end
 
-function curl_rq_handle(::Val{:PUT}, request::Request)
-    try
-        curl_setup_rq(request)
-        curl_easy_setopt(request.rq_curl, CURLOPT_POSTFIELDS, request.body)
-        curl_easy_setopt(request.rq_curl, CURLOPT_POSTFIELDSIZE, length(request.body))
-        curl_easy_setopt(request.rq_curl, CURLOPT_CUSTOMREQUEST, "PUT")
-        curl_rq_handle(request)
-    catch ex
-        rethrow(ex)
-    end
+function curl_req_handle(::Val{:PUT}, c::CurlClient, r::CurlRequest)
+    curl_setup_req(c, r)
+    curl_easy_setopt(c.curl_handle, CURLOPT_POSTFIELDS, r.body)
+    curl_easy_setopt(c.curl_handle, CURLOPT_POSTFIELDSIZE, length(r.body))
+    curl_easy_setopt(c.curl_handle, CURLOPT_CUSTOMREQUEST, "PUT")
+    curl_req_handle(c, r)
 end
 
-function curl_rq_handle(::Val{:PATCH}, request::Request)
-    try
-        curl_setup_rq(request)
-        curl_easy_setopt(request.rq_curl, CURLOPT_POSTFIELDS, request.body)
-        curl_easy_setopt(request.rq_curl, CURLOPT_POSTFIELDSIZE, length(request.body))
-        curl_easy_setopt(request.rq_curl, CURLOPT_CUSTOMREQUEST, "PATCH");
-        curl_rq_handle(request)
-    catch ex
-        rethrow(ex)
-    end
+function curl_req_handle(::Val{:PATCH}, c::CurlClient, r::CurlRequest)
+    curl_setup_req(c, r)
+    curl_easy_setopt(c.curl_handle, CURLOPT_POSTFIELDS, r.body)
+    curl_easy_setopt(c.curl_handle, CURLOPT_POSTFIELDSIZE, length(r.body))
+    curl_easy_setopt(c.curl_handle, CURLOPT_CUSTOMREQUEST, "PATCH");
+    curl_req_handle(c, r)
 end
 
-function curl_rq_handle(::Val{:DELETE}, request::Request)
-    try
-        curl_setup_rq(request)
-        curl_easy_setopt(request.rq_curl, CURLOPT_POSTFIELDS, request.body)
-        curl_easy_setopt(request.rq_curl, CURLOPT_CUSTOMREQUEST, "DELETE")
-        curl_rq_handle(request)
-    catch ex
-        rethrow(ex)
-    end
+function curl_req_handle(::Val{:DELETE}, c::CurlClient, r::CurlRequest)
+    curl_setup_req(c, r)
+    curl_easy_setopt(c.curl_handle, CURLOPT_POSTFIELDS, r.body)
+    curl_easy_setopt(c.curl_handle, CURLOPT_CUSTOMREQUEST, "DELETE")
+    curl_req_handle(c, r)
 end
 
-function curl_rq_handle(::Val{x}, request::Request) where {x}
-    return throw(EasyCurlError(405, "`$(x)` method not supported"))
+function curl_req_handle(::Val{x}, ::CurlClient, ::CurlRequest) where {x}
+    throw(CurlError(405, "`$(x)` method not supported"))
+end
+
+function _curl_req_handle(c::CurlClient, r::CurlRequest)
+    return curl_req_handle(Val(Symbol(r.method)), c, r)
 end
 
 """
-    curl_request(method::AbstractString, url::AbstractString; kw...) -> EasyCurl.Response
+    curl_request(method::AbstractString, url::AbstractString; kw...) -> CurlResponse
 
-Send a `url` HTTP Request using as `method` one of `"GET"`, `"POST"`, etc. and return a [`EasyCurl.Response`](@ref) object.
+Send a `url` HTTP CurlRequest using as `method` one of `"GET"`, `"POST"`, etc. and return a [`CurlResponse`](@ref) object.
 
 ## Keyword arguments
 
@@ -441,22 +468,22 @@ Send a `url` HTTP Request using as `method` one of `"GET"`, `"POST"`, etc. and r
 - `status_exception = true`: Whether to throw an exception if the response status code indicates an error.
 - `connect_timeout = 60`: The connect timeout for the request in seconds.
 - `read_timeout = 300`: The read timeout for the request in seconds.
-- `retries = 1`: The number of times to retry the request if an error occurs.
+- `retry = 1`: The number of times to retry the request if an error occurs.
 - `proxy = nothing`: Which proxy to use for the request.
 - `accept_encoding = "gzip"`: Encoding to accept.
-- `verbose::Bool = false`: Enables verbose output from EasyCurl for debugging.
+- `verbose::Bool = false`: Enables verbose output from Curl for debugging.
 - `ssl_verifypeer = true`: Whether peer need to be verified.
 
 ## Examples
 
 ```julia-repl
 julia> headers = Pair{String,String}[
-    "User-Agent" => "EasyCurl.jl",
-    "Content-Type" => "application/json"
-]
+           "User-Agent" => "EasyCurl.jl",
+           "Content-Type" => "application/json"
+       ]
 
 julia> response = curl_request("POST", "http://httpbin.org/post", headers = headers, query = "qry=你好嗎",
-    body = "{\\"data\\":\\"hi\\"}", interface = "en0", read_timeout = 5, connect_timeout = 10, retries = 10)
+    body = "{\\"data\\":\\"hi\\"}", interface = "en0", read_timeout = 5, connect_timeout = 10, retry = 10)
 
 julia> curl_status(response)
 200
@@ -486,64 +513,76 @@ julia> curl_body(response) |> String |> print
 }
 ```
 """
-function curl_request(method::AbstractString, url::AbstractString; kw...)
-    return request(method, url; kw...)
+function curl_request(x...; kw...)
+    return request(x...; kw...)
+end
+
+function request(method::AbstractString, url::AbstractString; kw...)
+    return curl_open(c -> request(c, method, url; kw...))
 end
 
 function request(
+    curl_client::CurlClient,
     method::AbstractString,
     url::AbstractString;
-    headers::Vector{Pair{String,String}} = Header[],
+    headers::Vector{Pair{String,String}} = Pair{String,String}[],
     query = nothing,
     body = nothing,
-    connect_timeout::Real = DEFAULT_CONNECT_TIMEOUT,
-    read_timeout::Real = DEFAULT_READ_TIMEOUT,
-    interface::Union{String,Nothing} = nothing,
-    proxy::Union{String,Nothing} = nothing,
-    retries::Int64 = 1,
     status_exception::Bool = true,
-    accept_encoding::Union{String,Nothing} = "gzip",
-    ssl_verifypeer::Bool = true,
-    verbose::Bool = false,
-)
-    @label retry_request
+    retry::Int64 = 1,
+    kw...,
+)::CurlResponse
+    @label retry
 
-    rq_curl = curl_easy_init()
-
-    req = Request(
+    req = CurlRequest(
         method,
-        rq_url(rq_curl, url, query),
-        headers,
-        to_bytes(body),
-        connect_timeout,
-        read_timeout,
-        interface,
-        proxy,
-        accept_encoding,
-        ssl_verifypeer,
-        verbose,
-        rq_curl,
-        curl_multi_init(),
-        CurlResponse(),
+        req_url(curl_client.curl_handle, url, query);
+        headers = headers,
+        body = to_bytes(body),
+        kw...,
     )
 
-    return try
-        curl_rq_handle(Val(Symbol(req.method)), req)
-        response = Response(req.response)
-        if status_exception && iserror(response)
-            throw(EasyCurlStatusError(response))
-        end
-        response
-    catch
-        retries -= 1
+    try
+        _curl_req_handle(curl_client, req)
+        r = CurlResponse(req.ctx)
+        status_exception && iserror(r) &&
+            throw(CurlStatusError(r))
+        r
+    catch e
+        retry = retry - 1
         sleep(0.25)
-        retries >= 0 && @goto retry_request
+        retry >= 0 && @goto retry
         rethrow()
     end
 end
 
 """
-    curl_get(url::AbstractString; kw...) -> EasyCurl.Response
+    curl_open(f::Function, x...; kw...)
+
+A helper function for executing a batch of curl requests, using the same client. Optionally
+configure the client (see [`CurlClient`](@ref) for more details).
+
+## Examples
+
+```julia-repl
+julia> curl_open() do client
+           response = curl_request(client, "GET", "http://httpbin.org/get")
+           println(curl_status(response))
+       end
+200
+```
+"""
+function curl_open(f::Function, x...; kw...)
+    c = CurlClient(x...; kw...)
+    try
+        f(c)
+    finally
+        close(c)
+    end
+end
+
+"""
+    curl_get(url::AbstractString; kw...) -> CurlResponse
 
 Shortcut for [`curl_request`](@ref) function, work similar to `curl_request("GET", url; kw...)`.
 
@@ -551,9 +590,9 @@ Shortcut for [`curl_request`](@ref) function, work similar to `curl_request("GET
 
 ```julia-repl
 julia> headers = Pair{String,String}[
-    "User-Agent" => "EasyCurl.jl",
-    "Content-Type" => "application/json"
-]
+           "User-Agent" => "EasyCurl.jl",
+           "Content-Type" => "application/json"
+       ]
 
 julia> response = curl_get("http://httpbin.org/get", headers = headers,
     query = Dict{String,String}("qry" => "你好嗎"))
@@ -580,10 +619,10 @@ julia> curl_body(response) |> String |> print
 ```
 """
 curl_get(url; kw...) = get(url; kw...)
-Base.get(url; kw...)::Response = request("GET", url; kw...)
+get(url; kw...)::CurlResponse = request("GET", url; kw...)
 
 """
-    curl_head(url::AbstractString; kw...) -> EasyCurl.Response
+    curl_head(url::AbstractString; kw...) -> CurlResponse
 
 Shortcut for [`curl_request`](@ref) function, work similar to `curl_request("HEAD", url; kw...)`.
 
@@ -591,9 +630,9 @@ Shortcut for [`curl_request`](@ref) function, work similar to `curl_request("HEA
 
 ```julia-repl
 julia> headers = Pair{String,String}[
-    "User-Agent" => "EasyCurl.jl",
-    "Content-Type" => "application/json"
-]
+           "User-Agent" => "EasyCurl.jl",
+           "Content-Type" => "application/json"
+       ]
 
 julia> response = curl_head("http://httpbin.org/get", headers = headers,
     query = "qry=你好嗎", interface = "0.0.0.0")
@@ -606,10 +645,10 @@ UInt8[]
 ```
 """
 curl_head(url; kw...) = head(url; kw...)
-head(url; kw...)::Response = request("HEAD", url; kw...)
+head(url; kw...)::CurlResponse = request("HEAD", url; kw...)
 
 """
-    curl_post(url::AbstractString; kw...) -> EasyCurl.Response
+    curl_post(url::AbstractString; kw...) -> CurlResponse
 
 Shortcut for [`curl_request`](@ref) function, work similar to `curl_request("POST", url; kw...)`.
 
@@ -617,9 +656,9 @@ Shortcut for [`curl_request`](@ref) function, work similar to `curl_request("POS
 
 ```julia-repl
 julia> headers = Pair{String,String}[
-    "User-Agent" => "EasyCurl.jl",
-    "Content-Type" => "application/json"
-]
+           "User-Agent" => "EasyCurl.jl",
+           "Content-Type" => "application/json"
+       ]
 
 julia> response = curl_post("http://httpbin.org/post", headers = headers,
     query = "qry=你好嗎", body = "{\\"data\\":\\"hi\\"}")
@@ -653,10 +692,10 @@ julia> curl_body(response) |> String |> print
 ```
 """
 curl_post(url; kw...) = post(url; kw...)
-post(url; kw...)::Response = request("POST", url; kw...)
+post(url; kw...)::CurlResponse = request("POST", url; kw...)
 
 """
-    curl_put(url::AbstractString; kw...) -> EasyCurl.Response
+    curl_put(url::AbstractString; kw...) -> CurlResponse
 
 Shortcut for [`curl_request`](@ref) function, work similar to `curl_request("PUT", url; kw...)`.
 
@@ -664,9 +703,9 @@ Shortcut for [`curl_request`](@ref) function, work similar to `curl_request("PUT
 
 ```julia-repl
 julia> headers = Pair{String,String}[
-    "User-Agent" => "EasyCurl.jl",
-    "Content-Type" => "application/json"
-]
+           "User-Agent" => "EasyCurl.jl",
+           "Content-Type" => "application/json"
+       ]
 
 julia> response = curl_put("http://httpbin.org/put", headers = headers,
     query = "qry=你好嗎", body = "{\\"data\\":\\"hi\\"}")
@@ -700,10 +739,10 @@ julia> curl_body(response) |> String |> print
 ```
 """
 curl_put(url; kw...) = put(url; kw...)
-put(url; kw...)::Response = request("PUT", url; kw...)
+put(url; kw...)::CurlResponse = request("PUT", url; kw...)
 
 """
-    curl_patch(url::AbstractString; kw...) -> EasyCurl.Response
+    curl_patch(url::AbstractString; kw...) -> CurlResponse
 
 Shortcut for [`curl_request`](@ref) function, work similar to `curl_request("PATCH", url; kw...)`.
 
@@ -711,9 +750,9 @@ Shortcut for [`curl_request`](@ref) function, work similar to `curl_request("PAT
 
 ```julia-repl
 julia> headers = Pair{String,String}[
-    "User-Agent" => "EasyCurl.jl",
-    "Content-Type" => "application/json"
-]
+           "User-Agent" => "EasyCurl.jl",
+           "Content-Type" => "application/json"
+       ]
 
 julia> response = curl_patch("http://httpbin.org/patch", headers = headers,
     query = "qry=你好嗎", body = "{\\"data\\":\\"hi\\"}")
@@ -747,10 +786,10 @@ julia> curl_body(response) |> String |> print
 ```
 """
 curl_patch(url; kw...) = patch(url; kw...)
-patch(url; kw...)::Response = request("PATCH", url; kw...)
+patch(url; kw...)::CurlResponse = request("PATCH", url; kw...)
 
 """
-    curl_delete(url::AbstractString; kw...) -> EasyCurl.Response
+    curl_delete(url::AbstractString; kw...) -> CurlResponse
 
 Shortcut for [`curl_request`](@ref) function, work similar to `curl_request("DELETE", url; kw...)`.
 
@@ -758,9 +797,9 @@ Shortcut for [`curl_request`](@ref) function, work similar to `curl_request("DEL
 
 ```julia-repl
 julia> headers = Pair{String,String}[
-    "User-Agent" => "EasyCurl.jl",
-    "Content-Type" => "application/json"
-]
+           "User-Agent" => "EasyCurl.jl",
+           "Content-Type" => "application/json"
+       ]
 
 julia> response = curl_delete("http://httpbin.org/delete", headers = headers,
     query = "qry=你好嗎", body = "{\\"data\\":\\"hi\\"}")
@@ -794,6 +833,6 @@ julia> curl_body(response) |> String |> print
 ```
 """
 curl_delete(url; kw...) = delete(url; kw...)
-delete(url; kw...)::Response = request("DELETE", url; kw...)
+delete(url; kw...)::CurlResponse = request("DELETE", url; kw...)
 
 end

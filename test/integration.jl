@@ -1,4 +1,6 @@
-# test/integration
+#__ integration
+
+import EasyCurl: urlencode_query_params
 
 const headers = [
     "User-Agent" => "EasyCurl.jl",
@@ -9,14 +11,14 @@ const query = Dict{String,Any}(
     "echo" => "你好嗎"
 )
 
-const payload = EasyCurl.urlencode_query_params(Dict{String,Any}(
-    "echo" => "hello"
-))
+const payload = urlencode_query_params(
+    Dict{String,Any}("echo" => "hello")
+)
 
 @testset verbose = true "HTTP Requests" begin
     # Couldn't resolve host name
     @testset "Nonexistent host error" begin
-        @test_throws "EasyCurlError{6}(Couldn't resolve host name)" EasyCurl.get(
+        @test_throws "CurlError{6}(Couldn't resolve host name)" curl_get(
             "https://bar-foo.foo/get",
             headers = headers,
             query = query,
@@ -26,22 +28,18 @@ const payload = EasyCurl.urlencode_query_params(Dict{String,Any}(
 
     # GET request test
     @testset "GET request" begin
-        response = EasyCurl.get(
-            "httpbin.org/get",
-            headers = headers,
-            query = query,
-            read_timeout = 30,
-        )
+        response =
+            curl_get("httpbin.org/get", headers = headers, query = query, read_timeout = 30)
         @test response.status == 200
 
-        body = JSON.parse(String(response.body))
+        body = parse_json(response.body)
         @test body["args"] == query
         @test body["url"] == "http://httpbin.org/get?echo=你好嗎"
     end
 
     # HEAD request test
     @testset "HEAD request" begin
-        response = EasyCurl.head(
+        response = curl_head(
             "httpbin.org/get",
             headers = headers,
             query = query,
@@ -53,7 +51,7 @@ const payload = EasyCurl.urlencode_query_params(Dict{String,Any}(
 
     # POST request test
     @testset "POST request" begin
-        response = EasyCurl.post(
+        response = curl_post(
             "httpbin.org/post",
             headers = headers,
             query = query,
@@ -62,13 +60,13 @@ const payload = EasyCurl.urlencode_query_params(Dict{String,Any}(
         )
         @test response.status == 200
 
-        body = JSON.parse(String(response.body))
+        body = parse_json(response.body)
         @test body["data"] == payload
     end
 
     # PUT request test
     @testset "PUT request" begin
-        response = EasyCurl.put(
+        response = curl_put(
             "httpbin.org/put",
             headers = headers,
             query = query,
@@ -77,13 +75,13 @@ const payload = EasyCurl.urlencode_query_params(Dict{String,Any}(
         )
         @test response.status == 200
 
-        body = JSON.parse(String(response.body))
+        body = parse_json(response.body)
         @test body["data"] == payload
     end
 
     # PATCH request test
     @testset "PATCH request" begin
-        response = EasyCurl.patch(
+        response = curl_patch(
             "httpbin.org/patch",
             headers = headers,
             query = query,
@@ -92,13 +90,13 @@ const payload = EasyCurl.urlencode_query_params(Dict{String,Any}(
         )
         @test response.status == 200
 
-        body = JSON.parse(String(response.body))
+        body = parse_json(response.body)
         @test body["data"] == payload
     end
 
     # DELETE request test
     @testset "DELETE request" begin
-        response = EasyCurl.delete(
+        response = curl_delete(
             "httpbin.org/delete",
             headers = headers,
             query = query,
@@ -107,7 +105,7 @@ const payload = EasyCurl.urlencode_query_params(Dict{String,Any}(
         )
         @test response.status == 200
 
-        body = JSON.parse(String(response.body))
+        body = parse_json(response.body)
         @test body["data"] == payload
     end
 end
@@ -135,7 +133,7 @@ end
 
     sleep(2)
 
-    @test_throws "EasyCurlError{45}(Failed binding local connection end)" EasyCurl.get(
+    @test_throws "CurlError{45}(Failed binding local connection end)" curl_get(
         "http://127.0.0.1:1234",
         headers = ["User-Agent" => "EasyCurl.jl"],
         interface = "10.10.10.10",
@@ -143,12 +141,12 @@ end
         verbose = true,
     )
 
-    response = EasyCurl.get(
+    response = curl_get(
         "http://127.0.0.1:1234",
         headers = ["User-Agent" => "EasyCurl.jl"],
         interface = "0.0.0.0",
         read_timeout = 30,
-        retries = 10,
+        retry = 10,
         verbose = true,
     )
 
