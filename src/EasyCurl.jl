@@ -324,20 +324,24 @@ function curl_header_cb(curlbuf::Ptr{UInt8}, s::Csize_t, n::Csize_t, p_ctxt::Ptr
     return sz::Csize_t
 end
 
-function curl_setup_req(c::CurlClient, r::CurlRequest)
-    curl_easy_setopt(c.curl_handle, CURLOPT_URL, r.url)
-    curl_easy_setopt(c.curl_handle, CURLOPT_CAINFO, LibCURL.cacert)
-    curl_easy_setopt(c.curl_handle, CURLOPT_FOLLOWLOCATION, 1)
-    curl_easy_setopt(c.curl_handle, CURLOPT_MAXREDIRS, MAX_REDIRECTIONS)
-    curl_easy_setopt(c.curl_handle, CURLOPT_CONNECTTIMEOUT, r.connect_timeout)
-    curl_easy_setopt(c.curl_handle, CURLOPT_TIMEOUT, r.read_timeout)
-    curl_easy_setopt(c.curl_handle, CURLOPT_WRITEFUNCTION, curl_write_cb)
-    curl_easy_setopt(c.curl_handle, CURLOPT_INTERFACE, something(r.interface, C_NULL))
-    curl_easy_setopt(c.curl_handle, CURLOPT_ACCEPT_ENCODING, something(r.accept_encoding, C_NULL))
-    curl_easy_setopt(c.curl_handle, CURLOPT_SSL_VERIFYPEER, r.ssl_verifypeer)
-    curl_easy_setopt(c.curl_handle, CURLOPT_USERAGENT, "EasyCurl/3.0.0")
-    curl_easy_setopt(c.curl_handle, CURLOPT_PROXY, something(r.proxy, C_NULL))
-    curl_easy_setopt(c.curl_handle, CURLOPT_VERBOSE, r.verbose)
+function curl_option!(c::CurlClient, x...)
+    return curl_easy_setopt(c.curl_handle, x...)
+end
+
+function curl_setup!(c::CurlClient, r::CurlRequest)
+    curl_option!(c, CURLOPT_URL, r.url)
+    curl_option!(c, CURLOPT_CAINFO, LibCURL.cacert)
+    curl_option!(c, CURLOPT_FOLLOWLOCATION, 1)
+    curl_option!(c, CURLOPT_MAXREDIRS, MAX_REDIRECTIONS)
+    curl_option!(c, CURLOPT_CONNECTTIMEOUT, r.connect_timeout)
+    curl_option!(c, CURLOPT_TIMEOUT, r.read_timeout)
+    curl_option!(c, CURLOPT_WRITEFUNCTION, curl_write_cb)
+    curl_option!(c, CURLOPT_INTERFACE, something(r.interface, C_NULL))
+    curl_option!(c, CURLOPT_ACCEPT_ENCODING, something(r.accept_encoding, C_NULL))
+    curl_option!(c, CURLOPT_SSL_VERIFYPEER, r.ssl_verifypeer)
+    curl_option!(c, CURLOPT_USERAGENT, "EasyCurl/3.0.0")
+    curl_option!(c, CURLOPT_PROXY, something(r.proxy, C_NULL))
+    curl_option!(c, CURLOPT_VERBOSE, r.verbose)
 
     c_curl_write_cb =
         @cfunction(curl_write_cb, Csize_t, (Ptr{UInt8}, Csize_t, Csize_t, Ptr{Cvoid}))
@@ -345,18 +349,18 @@ function curl_setup_req(c::CurlClient, r::CurlRequest)
     c_curl_header_cb =
         @cfunction(curl_header_cb, Csize_t, (Ptr{UInt8}, Csize_t, Csize_t, Ptr{Cvoid}))
 
-    curl_easy_setopt(c.curl_handle, CURLOPT_WRITEFUNCTION, c_curl_write_cb)
-    curl_easy_setopt(c.curl_handle, CURLOPT_WRITEDATA, pointer_from_objref(r.ctx))
+    curl_option!(c, CURLOPT_WRITEFUNCTION, c_curl_write_cb)
+    curl_option!(c, CURLOPT_WRITEDATA, pointer_from_objref(r.ctx))
 
-    curl_easy_setopt(c.curl_handle, CURLOPT_HEADERFUNCTION, c_curl_header_cb)
-    curl_easy_setopt(c.curl_handle, CURLOPT_HEADERDATA, pointer_from_objref(r.ctx))
+    curl_option!(c, CURLOPT_HEADERFUNCTION, c_curl_header_cb)
+    curl_option!(c, CURLOPT_HEADERDATA, pointer_from_objref(r.ctx))
 
     for (k,v) in r.headers
         r.ctx.curl_slist_ptr =
             curl_slist_append(r.ctx.curl_slist_ptr, k * ": " * v)
     end
 
-    curl_easy_setopt(c.curl_handle, CURLOPT_HTTPHEADER, r.ctx.curl_slist_ptr)
+    curl_option!(c, CURLOPT_HTTPHEADER, r.ctx.curl_slist_ptr)
 end
 
 mutable struct CurlMsgCtx
@@ -365,7 +369,7 @@ mutable struct CurlMsgCtx
     data::Ptr{Any}
 end
 
-function curl_req_handle(c::CurlClient, r::CurlRequest)
+function curl_execute(c::CurlClient, r::CurlRequest)
     try
         curl_multi_add_handle(c.multi_handle, c.curl_handle)
         curl_multi_perform(c.multi_handle, r.ctx.curl_active)
@@ -403,55 +407,55 @@ function curl_req_handle(c::CurlClient, r::CurlRequest)
     end
 end
 
-function curl_req_handle(::Val{:GET}, c::CurlClient, r::CurlRequest)
-    curl_setup_req(c, r)
-    curl_easy_setopt(c.curl_handle, CURLOPT_HTTPGET, 1)
-    curl_req_handle(c, r)
+function curl_execute(::Val{:GET}, c::CurlClient, r::CurlRequest)
+    curl_setup!(c, r)
+    curl_option!(c, CURLOPT_HTTPGET, 1)
+    curl_execute(c, r)
 end
 
-function curl_req_handle(::Val{:HEAD}, c::CurlClient, r::CurlRequest)
-    curl_setup_req(c, r)
-    curl_easy_setopt(c.curl_handle, CURLOPT_NOBODY, 1);
-    curl_req_handle(c, r)
+function curl_execute(::Val{:HEAD}, c::CurlClient, r::CurlRequest)
+    curl_setup!(c, r)
+    curl_option!(c, CURLOPT_NOBODY, 1);
+    curl_execute(c, r)
 end
 
-function curl_req_handle(::Val{:POST}, c::CurlClient, r::CurlRequest)
-    curl_setup_req(c, r)
-    curl_easy_setopt(c.curl_handle, CURLOPT_POST, 1)
-    curl_easy_setopt(c.curl_handle, CURLOPT_POSTFIELDSIZE, length(r.body))
-    curl_easy_setopt(c.curl_handle, CURLOPT_COPYPOSTFIELDS, pointer(r.body))
-    curl_req_handle(c, r)
+function curl_execute(::Val{:POST}, c::CurlClient, r::CurlRequest)
+    curl_setup!(c, r)
+    curl_option!(c, CURLOPT_POST, 1)
+    curl_option!(c, CURLOPT_POSTFIELDSIZE, length(r.body))
+    curl_option!(c, CURLOPT_COPYPOSTFIELDS, pointer(r.body))
+    curl_execute(c, r)
 end
 
-function curl_req_handle(::Val{:PUT}, c::CurlClient, r::CurlRequest)
-    curl_setup_req(c, r)
-    curl_easy_setopt(c.curl_handle, CURLOPT_POSTFIELDS, r.body)
-    curl_easy_setopt(c.curl_handle, CURLOPT_POSTFIELDSIZE, length(r.body))
-    curl_easy_setopt(c.curl_handle, CURLOPT_CUSTOMREQUEST, "PUT")
-    curl_req_handle(c, r)
+function curl_execute(::Val{:PUT}, c::CurlClient, r::CurlRequest)
+    curl_setup!(c, r)
+    curl_option!(c, CURLOPT_POSTFIELDS, r.body)
+    curl_option!(c, CURLOPT_POSTFIELDSIZE, length(r.body))
+    curl_option!(c, CURLOPT_CUSTOMREQUEST, "PUT")
+    curl_execute(c, r)
 end
 
-function curl_req_handle(::Val{:PATCH}, c::CurlClient, r::CurlRequest)
-    curl_setup_req(c, r)
-    curl_easy_setopt(c.curl_handle, CURLOPT_POSTFIELDS, r.body)
-    curl_easy_setopt(c.curl_handle, CURLOPT_POSTFIELDSIZE, length(r.body))
-    curl_easy_setopt(c.curl_handle, CURLOPT_CUSTOMREQUEST, "PATCH");
-    curl_req_handle(c, r)
+function curl_execute(::Val{:PATCH}, c::CurlClient, r::CurlRequest)
+    curl_setup!(c, r)
+    curl_option!(c, CURLOPT_POSTFIELDS, r.body)
+    curl_option!(c, CURLOPT_POSTFIELDSIZE, length(r.body))
+    curl_option!(c, CURLOPT_CUSTOMREQUEST, "PATCH");
+    curl_execute(c, r)
 end
 
-function curl_req_handle(::Val{:DELETE}, c::CurlClient, r::CurlRequest)
-    curl_setup_req(c, r)
-    curl_easy_setopt(c.curl_handle, CURLOPT_POSTFIELDS, r.body)
-    curl_easy_setopt(c.curl_handle, CURLOPT_CUSTOMREQUEST, "DELETE")
-    curl_req_handle(c, r)
+function curl_execute(::Val{:DELETE}, c::CurlClient, r::CurlRequest)
+    curl_setup!(c, r)
+    curl_option!(c, CURLOPT_POSTFIELDS, r.body)
+    curl_option!(c, CURLOPT_CUSTOMREQUEST, "DELETE")
+    curl_execute(c, r)
 end
 
-function curl_req_handle(::Val{x}, ::CurlClient, ::CurlRequest) where {x}
+function curl_execute(::Val{x}, ::CurlClient, ::CurlRequest) where {x}
     throw(CurlError(405, "`$(x)` method not supported"))
 end
 
-function _curl_req_handle(c::CurlClient, r::CurlRequest)
-    return curl_req_handle(Val(Symbol(r.method)), c, r)
+function _curl_execute(c::CurlClient, r::CurlRequest)
+    return curl_execute(Val(Symbol(r.method)), c, r)
 end
 
 """
@@ -543,7 +547,7 @@ function request(
     )
 
     try
-        _curl_req_handle(curl_client, req)
+        _curl_execute(curl_client, req)
         r = CurlResponse(req.ctx)
         status_exception && iserror(r) &&
             throw(CurlStatusError(r))
