@@ -108,12 +108,12 @@ function joinurl(basepart::AbstractString, parts::AbstractString...)::String
 end
 
 function parse_headers(x::AbstractString)
-    hdrs = Pair{String,String}[]
+    h = Pair{String,String}[]
     for m in match.(r"^(.*?):\s*(.*?)$", split(x, "\r\n"))
         isnothing(m) && continue
-        push!(hdrs, lowercase(m[1]) => m[2])
+        push!(h, lowercase(m[1]) => m[2])
     end
-    return hdrs
+    return h
 end
 
 function parse_headers(x::Vector{UInt8})

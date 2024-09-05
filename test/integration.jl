@@ -152,8 +152,8 @@ end
 
     @test response.status == 200
     @test String(response.body) == "<h1>Hello</h1>\n"
-    @test EasyCurl.headers(response, "User-Agent")[] == "EasyCurl.jl"
-    @test EasyCurl.headers(response, "user-agent")[] == "EasyCurl.jl"
+    @test curl_header(response, "User-Agent") == "EasyCurl.jl"
+    @test curl_header(response, "user-agent") == "EasyCurl.jl"
 
     close(server)
 end

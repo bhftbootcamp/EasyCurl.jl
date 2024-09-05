@@ -13,7 +13,8 @@ export curl_body,
     curl_status,
     curl_headers,
     curl_request_time,
-    curl_iserror
+    curl_iserror,
+    curl_header
 
 export CurlClient,
     CurlRequest,
@@ -181,13 +182,44 @@ end
 curl_status(x::CurlResponse) = status(x)
 status(x::CurlResponse) = x.status
 
+curl_iserror(x::CurlResponse) = iserror(x.status)
+iserror(x::CurlResponse) = x.status >= 400
+
 curl_request_time(x::CurlResponse) = request_time(x)
 request_time(x::CurlResponse) = x.request_time
+
+curl_body(x::CurlResponse) = body(x)
+body(x::CurlResponse) = x.body
 
 curl_headers(x::CurlResponse) = headers(x)
 headers(x::CurlResponse) = x.headers
 
-function headers(x::CurlResponse, key::AbstractString)
+"""
+    curl_headers(x::CurlResponse, key::AbstractString) -> Vector{String}
+
+Retrieve all values for a specific header field from a `CurlResponse` object. This function is case-insensitive with regard to the header field name.
+
+## Arguments
+
+- `x`: The `CurlResponse` object from which headers are retrieved.
+- `key`: The header field name for which values are requested.
+
+## Returns
+
+- `Vector{String}`: A vector of strings containing all values associated with the header field. Returns an empty vector if the header is not present.
+
+## Examples
+
+```julia-repl
+julia> response = curl_request("GET", "http://example.com")
+julia> curl_headers(response, "Content-Type")
+["text/html; charset=UTF-8"]
+
+julia> curl_headers(response, "nonexistent-header")
+[]
+```
+"""
+function curl_headers(x::CurlResponse, key::AbstractString)
     h = String[]
     for (k, v) in x.headers
         lowercase(key) == lowercase(k) && push!(h, v)
@@ -195,11 +227,38 @@ function headers(x::CurlResponse, key::AbstractString)
     return h
 end
 
-curl_body(x::CurlResponse) = body(x)
-body(x::CurlResponse) = x.body
+"""
+    curl_header(x::CurlResponse, key::AbstractString, def = nothing) -> Union{String, Nothing}
 
-curl_iserror(x::CurlResponse) = iserror(x.status)
-iserror(x::CurlResponse) = x.status >= 400
+Retrieve the first value of a specific header field from a `CurlResponse` object. If the header is not found, the function returns a default value. This function is case-insensitive with regard to the header field name.
+
+## Arguments
+
+- `x`: The `CurlResponse` object from which the header is retrieved.
+- `key`: The header field name for which the value is requested.
+- `def`: The default value to return if the header field is not found (defaults to `nothing`).
+
+## Returns
+
+- `Union{String, Nothing}`: The value of the header or the default value if the header is not found.
+
+## Examples
+
+```julia-repl
+julia> response = curl_request("GET", "http://example.com")
+julia> curl_header(response, "Content-Type")
+"text/html; charset=UTF-8"
+
+julia> curl_header(response, "nonexistent-header", "default-value")
+"default-value"
+```
+"""
+function curl_header(x::CurlResponse, key::AbstractString, def = nothing)
+    for (k, v) in x.headers
+        lowercase(key) == lowercase(k) && return v
+    end
+    return def
+end
 
 """
     CurlRequest
