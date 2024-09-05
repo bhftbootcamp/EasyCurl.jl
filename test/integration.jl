@@ -23,6 +23,7 @@ const payload = urlencode_query_params(
             headers = headers,
             query = query,
             read_timeout = 30,
+            verbose = true,
         )
     end
 
@@ -44,6 +45,7 @@ const payload = urlencode_query_params(
             headers = headers,
             query = query,
             read_timeout = 30,
+            verbose = true,
         )
         @test response.status == 200
         @test isempty(response.body)
@@ -57,6 +59,7 @@ const payload = urlencode_query_params(
             query = query,
             body = payload,
             read_timeout = 30,
+            verbose = true,
         )
         @test response.status == 200
 
@@ -72,6 +75,7 @@ const payload = urlencode_query_params(
             query = query,
             body = payload,
             read_timeout = 30,
+            verbose = true,
         )
         @test response.status == 200
 
@@ -87,6 +91,7 @@ const payload = urlencode_query_params(
             query = query,
             body = payload,
             read_timeout = 30,
+            verbose = true,
         )
         @test response.status == 200
 
@@ -102,6 +107,7 @@ const payload = urlencode_query_params(
             query = query,
             body = payload,
             read_timeout = 30,
+            verbose = true,
         )
         @test response.status == 200
 
