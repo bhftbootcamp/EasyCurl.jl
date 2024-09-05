@@ -16,6 +16,8 @@ export curl_body,
     curl_iserror,
     curl_header
 
+export curl_joinurl
+
 export CurlClient,
     CurlRequest,
     CurlResponse,
@@ -81,6 +83,7 @@ Type wrapping LibCURL error codes. Returned from [`curl_request`](@ref) when a l
 - `message::String`: The error message.
 
 ## Examples
+
 ```julia-repl
 julia> curl_request("GET", "http://httpbin.org/status/400", interface = "9.9.9.9")
 ERROR: CurlError{45}(Failed binding local connection end)
@@ -105,10 +108,10 @@ function Base.showerror(io::IO, e::CurlError)
 end
 
 mutable struct CurlContext
-    curl_slist_ptr::Ptr{Nothing}
-    curl_status::Vector{Clong}
-    curl_total_time::Vector{Cdouble}
-    curl_active::Vector{Cint}
+    header_list_ptr::Ptr{Nothing}
+    response_code::Vector{Clong}
+    request_time::Vector{Cdouble}
+    active_requests::Vector{Cint}
     byte_received::UInt64
     headers::IOBuffer
     body::IOBuffer
@@ -116,7 +119,7 @@ mutable struct CurlContext
     function CurlContext()
         c = new(C_NULL, Vector{Clong}(undef, 1), Vector{Cdouble}(undef, 1), Cint[1], 0x0, IOBuffer(), IOBuffer())
         finalizer(close, c)
-        c
+        return c
     end
 end
 
@@ -137,13 +140,6 @@ An HTTP response object returned on a request completion.
 - `request_time::Float64`: The time taken for the HTTP request in seconds.
 - `headers::Vector{Pair{String,String}}`: Headers received in the HTTP response.
 - `body::Vector{UInt8}`: The response body as a vector of bytes.
-
-## Accessors
-
-- `curl_status(x::CurlResponse)` -> `Int64`: Returns the HTTP status code.
-- `curl_request_time(x::CurlResponse)` -> `Float64`: Returns the request time.
-- `curl_headers(x::CurlResponse)` -> `Vector{Pair{String,String}}`: Returns the headers.
-- `curl_body(x::CurlResponse)` -> `Vector{UInt8}`: Returns the response body.
 """
 struct CurlResponse
     status::Int64
@@ -153,8 +149,8 @@ struct CurlResponse
 
     function CurlResponse(x::CurlContext)
         return new(
-            x.curl_status[1],
-            x.curl_total_time[1],
+            x.response_code[1],
+            x.request_time[1],
             parse_headers(take!(x.headers)),
             take!(x.body),
         )
@@ -179,44 +175,124 @@ function Base.show(io::IO, x::CurlResponse)
     end
 end
 
-curl_status(x::CurlResponse) = status(x)
-status(x::CurlResponse) = x.status
-
-curl_iserror(x::CurlResponse) = iserror(x.status)
-iserror(x::CurlResponse) = x.status >= 400
-
-curl_request_time(x::CurlResponse) = request_time(x)
-request_time(x::CurlResponse) = x.request_time
-
-curl_body(x::CurlResponse) = body(x)
-body(x::CurlResponse) = x.body
-
-curl_headers(x::CurlResponse) = headers(x)
-headers(x::CurlResponse) = x.headers
-
 """
-    curl_headers(x::CurlResponse, key::AbstractString) -> Vector{String}
+    curl_status(x::CurlResponse) -> Int
 
-Retrieve all values for a specific header field from a `CurlResponse` object. This function is case-insensitive with regard to the header field name.
-
-## Arguments
-
-- `x`: The `CurlResponse` object from which headers are retrieved.
-- `key`: The header field name for which values are requested.
-
-## Returns
-
-- `Vector{String}`: A vector of strings containing all values associated with the header field. Returns an empty vector if the header is not present.
+Extracts the HTTP status code from a [`CurlResponse`](@ref) object.
 
 ## Examples
 
 ```julia-repl
-julia> response = curl_request("GET", "http://example.com")
+julia> response = curl_request("GET", "http://httpbin.org/get")
+
+julia> curl_status(response)
+200
+```
+"""
+curl_status(x::CurlResponse) = x.status
+status(x...; kw...) = curl_status(x...; kw...)
+
+"""
+    curl_iserror(x::CurlResponse) -> Bool
+
+Determines if the HTTP response indicates an error (status codes 400 and above).
+
+## Examples
+
+```julia-repl
+julia> response = curl_request("GET", "http://httpbin.org/get")
+
+julia> curl_iserror(response)
+false
+```
+"""
+curl_iserror(x::CurlResponse) = x.status >= 400
+iserror(x...; kw...) = curl_iserror(x...; kw...)
+
+"""
+    curl_body(x::CurlResponse) -> String
+
+Extracts the body of the HTTP response as a string.
+
+## Examples
+
+```julia-repl
+julia> response = curl_request("GET", "http://httpbin.org/get")
+
+julia> curl_body(response) |> String |> print
+{
+  "args": {},
+  "headers": {
+    "Accept": "*/*",
+    "Host": "httpbin.org",
+    "User-Agent": "EasyCurl/3.0.0",
+    "X-Amzn-Trace-Id": "Root=1-66d985f2-4f01659e569022ee4dc145a8"
+  },
+  "origin": "95.217.119.142",
+  "url": "http://httpbin.org/get"
+}
+```
+"""
+curl_body(x::CurlResponse) = x.body
+body(x...; kw...) = curl_body(x...; kw...)
+
+"""
+    curl_headers(x::CurlResponse) -> Dict{String, String}
+
+Extracts all headers from a [`CurlResponse`](@ref) object as a dictionary.
+
+## Examples
+
+```julia-repl
+julia> response = curl_request("GET", "http://httpbin.org/get")
+
+julia> curl_headers(response)
+7-element Vector{Pair{String, String}}:
+"date" => "Thu, 05 Sep 2024 10:24:48 GMT"
+"content-type" => "application/json"
+"content-length" => "258"
+"connection" => "keep-alive"
+"server" => "gunicorn/19.9.0"
+"access-control-allow-origin" => "*"
+"access-control-allow-credentials" => "true"
+```
+"""
+curl_headers(x::CurlResponse) = x.headers
+headers(x...; kw...) = curl_headers(x...; kw...)
+
+"""
+    curl_request_time(x::CurlResponse) -> Float64
+
+Extracts the total request time for the HTTP request that resulted in the [`CurlResponse`](@ref).
+
+## Examples
+
+```julia-repl
+julia> response = curl_request("GET", "http://httpbin.org/get")
+
+julia> curl_request_time(response)
+0.384262
+```
+"""
+curl_request_time(x::CurlResponse) = x.request_time
+request_time(x...; kw...) = curl_request_time(x...; kw...)
+
+"""
+    curl_headers(x::CurlResponse, key::AbstractString) -> Vector{String}
+
+Retrieve all values for a specific header field from a [`CurlResponse`](@ref) object. This function is case-insensitive with regard to the header field name.
+
+## Examples
+
+```julia-repl
+julia> response = curl_request("GET", "http://httpbin.org/get")
+
 julia> curl_headers(response, "Content-Type")
-["text/html; charset=UTF-8"]
+1-element Vector{String}:
+ "application/json"
 
 julia> curl_headers(response, "nonexistent-header")
-[]
+ String[]
 ```
 """
 function curl_headers(x::CurlResponse, key::AbstractString)
@@ -230,24 +306,15 @@ end
 """
     curl_header(x::CurlResponse, key::AbstractString, def = nothing) -> Union{String, Nothing}
 
-Retrieve the first value of a specific header field from a `CurlResponse` object. If the header is not found, the function returns a default value. This function is case-insensitive with regard to the header field name.
-
-## Arguments
-
-- `x`: The `CurlResponse` object from which the header is retrieved.
-- `key`: The header field name for which the value is requested.
-- `def`: The default value to return if the header field is not found (defaults to `nothing`).
-
-## Returns
-
-- `Union{String, Nothing}`: The value of the header or the default value if the header is not found.
+Retrieve the first value of a specific header field from a [`CurlResponse`](@ref) object. If the header is not found, the function returns a default value. This function is case-insensitive with regard to the header field name.
 
 ## Examples
 
 ```julia-repl
-julia> response = curl_request("GET", "http://example.com")
+julia> response = curl_request("GET", "http://httpbin.org/get")
+
 julia> curl_header(response, "Content-Type")
-"text/html; charset=UTF-8"
+"application/json"
 
 julia> curl_header(response, "nonexistent-header", "default-value")
 "default-value"
@@ -259,6 +326,8 @@ function curl_header(x::CurlResponse, key::AbstractString, def = nothing)
     end
     return def
 end
+
+header(x...; kw...) = curl_header(x...; kw...)
 
 """
     CurlRequest
@@ -331,11 +400,13 @@ end
 Type wrapping HTTP error codes. Returned from [`curl_request`](@ref) when an HTTP error occurs.
 
 ## Fields
+
 - `code::Int64`: The HTTP error code (see [`HTTP_STATUS_CODES`](@ref)).
 - `message::String`: The error message.
 - `response::CurlResponse`: The HTTP response object.
 
 ## Examples
+
 ```julia-repl
 julia> curl_request("GET", "http://httpbin.org/status/400", interface = "0.0.0.0")
 ERROR: CurlStatusError{400}(BAD_REQUEST)
@@ -352,7 +423,7 @@ struct CurlStatusError{code} <: Exception
     response::CurlResponse
 
     function CurlStatusError(x::CurlResponse)
-        return new{status(x)}(status(x), Base.get(HTTP_STATUS_CODES, status(x), HTTP_STATUS_CODES[500]), x)
+        return new{x.status}(x.status, Base.get(HTTP_STATUS_CODES, x.status, HTTP_STATUS_CODES[500]), x)
     end
 end
 
@@ -362,7 +433,7 @@ end
 
 #__ libcurl
 
-function curl_write_cb(curlbuf::Ptr{UInt8}, s::Csize_t, n::Csize_t, p_ctxt::Ptr{Cvoid})
+function write_response_body(curlbuf::Ptr{UInt8}, s::Csize_t, n::Csize_t, p_ctxt::Ptr{Cvoid})
     result = unsafe_pointer_to_objref(p_ctxt)
     sz = s * n
     result.byte_received += sz
@@ -370,7 +441,7 @@ function curl_write_cb(curlbuf::Ptr{UInt8}, s::Csize_t, n::Csize_t, p_ctxt::Ptr{
     return sz::Csize_t
 end
 
-function curl_header_cb(curlbuf::Ptr{UInt8}, s::Csize_t, n::Csize_t, p_ctxt::Ptr{Cvoid})
+function write_response_headers(curlbuf::Ptr{UInt8}, s::Csize_t, n::Csize_t, p_ctxt::Ptr{Cvoid})
     result = unsafe_pointer_to_objref(p_ctxt)
     sz = s * n
     unsafe_write(result.headers, curlbuf, sz)
@@ -388,7 +459,7 @@ function curl_setup!(c::CurlClient, r::CurlRequest)
     curl_option!(c, CURLOPT_MAXREDIRS, MAX_REDIRECTIONS)
     curl_option!(c, CURLOPT_CONNECTTIMEOUT, r.connect_timeout)
     curl_option!(c, CURLOPT_TIMEOUT, r.read_timeout)
-    curl_option!(c, CURLOPT_WRITEFUNCTION, curl_write_cb)
+    curl_option!(c, CURLOPT_WRITEFUNCTION, write_response_body)
     curl_option!(c, CURLOPT_INTERFACE, something(r.interface, C_NULL))
     curl_option!(c, CURLOPT_ACCEPT_ENCODING, something(r.accept_encoding, C_NULL))
     curl_option!(c, CURLOPT_SSL_VERIFYPEER, r.ssl_verifypeer)
@@ -396,27 +467,27 @@ function curl_setup!(c::CurlClient, r::CurlRequest)
     curl_option!(c, CURLOPT_PROXY, something(r.proxy, C_NULL))
     curl_option!(c, CURLOPT_VERBOSE, r.verbose)
 
-    c_curl_write_cb =
-        @cfunction(curl_write_cb, Csize_t, (Ptr{UInt8}, Csize_t, Csize_t, Ptr{Cvoid}))
+    response_body_callback =
+        @cfunction(write_response_body, Csize_t, (Ptr{UInt8}, Csize_t, Csize_t, Ptr{Cvoid}))
 
-    c_curl_header_cb =
-        @cfunction(curl_header_cb, Csize_t, (Ptr{UInt8}, Csize_t, Csize_t, Ptr{Cvoid}))
+    response_header_callback =
+        @cfunction(write_response_headers, Csize_t, (Ptr{UInt8}, Csize_t, Csize_t, Ptr{Cvoid}))
 
-    curl_option!(c, CURLOPT_WRITEFUNCTION, c_curl_write_cb)
+    curl_option!(c, CURLOPT_WRITEFUNCTION, response_body_callback)
     curl_option!(c, CURLOPT_WRITEDATA, pointer_from_objref(r.ctx))
 
-    curl_option!(c, CURLOPT_HEADERFUNCTION, c_curl_header_cb)
+    curl_option!(c, CURLOPT_HEADERFUNCTION, response_header_callback)
     curl_option!(c, CURLOPT_HEADERDATA, pointer_from_objref(r.ctx))
 
     for (k,v) in r.headers
-        r.ctx.curl_slist_ptr =
-            curl_slist_append(r.ctx.curl_slist_ptr, k * ": " * v)
+        r.ctx.header_list_ptr =
+            curl_slist_append(r.ctx.header_list_ptr, k * ": " * v)
     end
 
-    curl_option!(c, CURLOPT_HTTPHEADER, r.ctx.curl_slist_ptr)
+    curl_option!(c, CURLOPT_HTTPHEADER, r.ctx.header_list_ptr)
 end
 
-mutable struct CurlMsgCtx
+mutable struct CurlMessageInfo
     msg::CURLMSG
     easy_handle::Ptr{CURL}
     data::Ptr{Any}
@@ -425,38 +496,42 @@ end
 function curl_execute(c::CurlClient, r::CurlRequest)
     try
         curl_multi_add_handle(c.multi_handle, c.curl_handle)
-        curl_multi_perform(c.multi_handle, r.ctx.curl_active)
+        curl_multi_perform(c.multi_handle, r.ctx.active_requests)
 
-        while (r.ctx.curl_active[1] > 0)
+        while r.ctx.active_requests[1] > 0
             byte_received_before = r.ctx.byte_received
-            curl_m_code = curl_multi_perform(c.multi_handle, r.ctx.curl_active)
+            multi_perf_status = curl_multi_perform(c.multi_handle, r.ctx.active_requests)
             byte_received_after = r.ctx.byte_received
-            if curl_m_code != CURLE_OK
-                throw(CurlError(curl_m_code, unsafe_string(curl_multi_strerror(curl_m_code))))
+
+            if multi_perf_status != CURLE_OK
+                error_msg = unsafe_string(curl_multi_strerror(multi_perf_status))
+                throw(CurlError(multi_perf_status, error_msg))
             end
-            if !(byte_received_after > byte_received_before)
+
+            if byte_received_after <= byte_received_before
                 sleep(0.001)
             end
         end
 
-        msgs_in_queue = Vector{Int32}(undef, 1)
-        ptr_msg::Ptr{CurlMsgCtx} = curl_multi_info_read(c.multi_handle, msgs_in_queue)
+        messages_in_queue = Vector{Int32}(undef, 1)
+        message_ptr::Ptr{CurlMessageInfo} = curl_multi_info_read(c.multi_handle, messages_in_queue)
 
-        while ptr_msg != C_NULL
-            msg = unsafe_load(ptr_msg)
-            ptr_msg = curl_multi_info_read(c.multi_handle, msgs_in_queue)
+        while message_ptr != C_NULL
+            msg = unsafe_load(message_ptr)
+            message_ptr = curl_multi_info_read(c.multi_handle, messages_in_queue)
             msg.msg != CURLMSG_DONE && continue
-            curl_code = convert(UInt32, msg.data)
-            if curl_code != CURLE_OK
-                throw(CurlError(curl_code, unsafe_string(curl_easy_strerror(curl_code))))
+            easy_handle_status = convert(UInt32, msg.data)
+            if easy_handle_status != CURLE_OK
+                error_msg = unsafe_string(curl_easy_strerror(easy_handle_status))
+                throw(CurlError(easy_handle_status, error_msg))
             end
         end
 
-        curl_easy_getinfo(c.curl_handle, CURLINFO_RESPONSE_CODE, r.ctx.curl_status)
-        curl_easy_getinfo(c.curl_handle, CURLINFO_TOTAL_TIME, r.ctx.curl_total_time)
+        curl_easy_getinfo(c.curl_handle, CURLINFO_RESPONSE_CODE, r.ctx.response_code)
+        curl_easy_getinfo(c.curl_handle, CURLINFO_TOTAL_TIME, r.ctx.request_time)
     finally
         curl_multi_remove_handle(c.multi_handle, c.curl_handle)
-        curl_slist_free_all(r.ctx.curl_slist_ptr)
+        curl_slist_free_all(r.ctx.header_list_ptr)
     end
 end
 
@@ -526,6 +601,7 @@ Send a `url` HTTP CurlRequest using as `method` one of `"GET"`, `"POST"`, etc. a
 - `connect_timeout = 60`: The connect timeout for the request in seconds.
 - `read_timeout = 300`: The read timeout for the request in seconds.
 - `retry = 1`: The number of times to retry the request if an error occurs.
+- `retry_delay = 0.25`: Delay between retry attempts in seconds. Specifies the waiting time before attempting the request again after a failure.
 - `proxy = nothing`: Which proxy to use for the request.
 - `accept_encoding = "gzip"`: Encoding to accept.
 - `verbose::Bool = false`: Enables verbose output from Curl for debugging.
@@ -570,15 +646,11 @@ julia> curl_body(response) |> String |> print
 }
 ```
 """
-function curl_request(x...; kw...)
-    return request(x...; kw...)
+function curl_request(method::AbstractString, url::AbstractString; kw...)
+    return curl_open(c -> curl_request(c, method, url; kw...))
 end
 
-function request(method::AbstractString, url::AbstractString; kw...)
-    return curl_open(c -> request(c, method, url; kw...))
-end
-
-function request(
+function curl_request(
     curl_client::CurlClient,
     method::AbstractString,
     url::AbstractString;
@@ -586,11 +658,11 @@ function request(
     query = nothing,
     body = nothing,
     status_exception::Bool = true,
-    retry::Int64 = 1,
-    kw...,
+    retry::Int64 = 0,
+    retry_delay::Real = 0.25,
+    kw...
 )::CurlResponse
     @label retry
-
     req = CurlRequest(
         method,
         req_url(curl_client.curl_handle, url, query);
@@ -598,20 +670,22 @@ function request(
         body = to_bytes(body),
         kw...,
     )
-
     try
         _curl_execute(curl_client, req)
         r = CurlResponse(req.ctx)
-        status_exception && iserror(r) &&
+        if status_exception && curl_iserror(r)
             throw(CurlStatusError(r))
-        r
-    catch e
-        retry = retry - 1
-        sleep(0.25)
+        end
+        return r
+    catch
+        retry -= 1
+        sleep(retry_delay)
         retry >= 0 && @goto retry
         rethrow()
     end
 end
+
+request(x...; kw...) = curl_request(x...; kw...)
 
 """
     curl_open(f::Function, x...; kw...)
@@ -624,7 +698,7 @@ configure the client (see [`CurlClient`](@ref) for more details).
 ```julia-repl
 julia> curl_open() do client
            response = curl_request(client, "GET", "http://httpbin.org/get")
-           println(curl_status(response))
+           curl_status(response)
        end
 200
 ```
@@ -675,8 +749,8 @@ julia> curl_body(response) |> String |> print
 }
 ```
 """
-curl_get(url; kw...) = get(url; kw...)
-get(url; kw...)::CurlResponse = request("GET", url; kw...)
+curl_get(url; kw...)::CurlResponse = curl_request("GET", url; kw...)
+get(url; kw...)::CurlResponse = curl_get(url; kw...)
 
 """
     curl_head(url::AbstractString; kw...) -> CurlResponse
@@ -701,8 +775,8 @@ julia> curl_body(response)
 UInt8[]
 ```
 """
-curl_head(url; kw...) = head(url; kw...)
-head(url; kw...)::CurlResponse = request("HEAD", url; kw...)
+curl_head(url; kw...)::CurlResponse = curl_request("HEAD", url; kw...)
+head(url; kw...) = curl_head(url; kw...)
 
 """
     curl_post(url::AbstractString; kw...) -> CurlResponse
@@ -748,8 +822,8 @@ julia> curl_body(response) |> String |> print
 }
 ```
 """
-curl_post(url; kw...) = post(url; kw...)
-post(url; kw...)::CurlResponse = request("POST", url; kw...)
+curl_post(url; kw...)::CurlResponse = curl_request("POST", url; kw...)
+post(url; kw...) = curl_post(url; kw...)
 
 """
     curl_put(url::AbstractString; kw...) -> CurlResponse
@@ -795,8 +869,7 @@ julia> curl_body(response) |> String |> print
 }
 ```
 """
-curl_put(url; kw...) = put(url; kw...)
-put(url; kw...)::CurlResponse = request("PUT", url; kw...)
+curl_put(url; kw...)::CurlResponse = curl_request("PUT", url; kw...)
 
 """
     curl_patch(url::AbstractString; kw...) -> CurlResponse
@@ -842,8 +915,8 @@ julia> curl_body(response) |> String |> print
 }
 ```
 """
-curl_patch(url; kw...) = patch(url; kw...)
-patch(url; kw...)::CurlResponse = request("PATCH", url; kw...)
+curl_patch(url; kw...)::CurlResponse = curl_request("PATCH", url; kw...)
+patch(url; kw...)::CurlResponse = curl_patch(url; kw...)
 
 """
     curl_delete(url::AbstractString; kw...) -> CurlResponse
@@ -889,7 +962,7 @@ julia> curl_body(response) |> String |> print
 }
 ```
 """
-curl_delete(url; kw...) = delete(url; kw...)
-delete(url; kw...)::CurlResponse = request("DELETE", url; kw...)
+curl_delete(url; kw...)::CurlResponse = curl_request("DELETE", url; kw...)
+delete(url; kw...)::CurlResponse = curl_delete(url; kw...)
 
 end

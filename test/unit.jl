@@ -1,6 +1,6 @@
 #__ unit
 
-import EasyCurl: urlencode_query_params, urldecode, urlencode, joinurl
+import EasyCurl: urlencode_query_params, urldecode, urlencode
 
 @testset verbose = true "URL Encoding" begin
     @testset "URL Query Parameter Encoding" begin
@@ -48,17 +48,17 @@ import EasyCurl: urlencode_query_params, urldecode, urlencode, joinurl
         end
     end
 
-    @testset "joinurl Function Tests" begin
-        @test joinurl("http://example.com") == "http://example.com"
-        @test joinurl("http://example.com", "path") == "http://example.com/path"
-        @test joinurl("http://example.com", "path", "to", "resource") == "http://example.com/path/to/resource"
-        @test joinurl("http://example.com/", "path") == "http://example.com/path"
-        @test joinurl("http://example.com", "/path") == "http://example.com/path"
-        @test joinurl("http://example.com/", "/path/", "/to/", "/resource/") == "http://example.com/path/to/resource"
-        @test joinurl("http://example.com", "path to", "the resource") == "http://example.com/path to/the resource"
-        @test joinurl("http://example.com", "", "path") == "http://example.com/path"
-        @test joinurl("http://example.com", "path", "") == "http://example.com/path"
-        @test joinurl("http://example.com", "path?", "key=value") == "http://example.com/path?/key=value"
-        @test joinurl("http://example.com", "path?", "key=value", "more=info") == "http://example.com/path?/key=value/more=info"
+    @testset "curl_joinurl Function Tests" begin
+        @test curl_joinurl("http://example.com") == "http://example.com"
+        @test curl_joinurl("http://example.com", "path") == "http://example.com/path"
+        @test curl_joinurl("http://example.com", "path", "to", "resource") == "http://example.com/path/to/resource"
+        @test curl_joinurl("http://example.com/", "path") == "http://example.com/path"
+        @test curl_joinurl("http://example.com", "/path") == "http://example.com/path"
+        @test curl_joinurl("http://example.com/", "/path/", "/to/", "/resource/") == "http://example.com/path/to/resource"
+        @test curl_joinurl("http://example.com", "path to", "the resource") == "http://example.com/path to/the resource"
+        @test curl_joinurl("http://example.com", "", "path") == "http://example.com/path"
+        @test curl_joinurl("http://example.com", "path", "") == "http://example.com/path"
+        @test curl_joinurl("http://example.com", "path?", "key=value") == "http://example.com/path?/key=value"
+        @test curl_joinurl("http://example.com", "path?", "key=value", "more=info") == "http://example.com/path?/key=value/more=info"
     end
 end

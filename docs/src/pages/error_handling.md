@@ -19,14 +19,8 @@ Below is a small example of error handling.
 ```julia
 using EasyCurl
 
-headers = Pair{String,String}[
-    "User-Agent" => "EasyCurl.jl",
-    "Content-Type" => "application/json",
-]
-
 try
-    response = curl_request("GET", "http://httpbin.org/status/400", query = "echo=你好嗎",
-        headers = headers, interface = "0.0.0.0", read_timeout = 30, retry = 1)
+    curl_request("GET", "http://httpbin.org/status/400", read_timeout = 30)
     # If the request is successful, you can process the response here
     # ...
 catch e
@@ -36,7 +30,7 @@ catch e
         # Handle the case where the operation timed out
     elseif isa(e, CurlStatusError{400})
         # Handle a 400 Bad Request error specifically
-        rethrow(e)
     end
+    rethrow(e)
 end
 ```

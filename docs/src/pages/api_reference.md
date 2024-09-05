@@ -22,7 +22,5 @@ curl_delete
 ## Utilities
 
 ```@docs
-EasyCurl.urlencode
-EasyCurl.urldecode
-EasyCurl.joinurl
+curl_joinurl
 ```

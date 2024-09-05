@@ -36,7 +36,7 @@ response = curl_request("POST", "http://httpbin.org/post", headers = headers, qu
 julia> curl_status(response)
 200
 
-julia> String(curl_body(response))
+julia> curl_body(response) |> String |> print
 {
   "headers": {
     "X-Amzn-Trace-Id": "Root=1-6588a009-19f3dc0321bee38106226bb3",
@@ -66,30 +66,23 @@ For HEAD, GET, POST, PUT, and PATCH requests, a similar structure is used to inv
 ```julia
 using EasyCurl
 
-headers = [
-    "User-Agent" => "EasyCurl.jl",
-    "Content-Type" => "application/json"
-]
-
 # HEAD
-julia> curl_request("HEAD", "http://httpbin.org/get", headers = headers,
-    query = "qry=你好嗎", interface = "0.0.0.0")
+julia> curl_head("http://httpbin.org/get", interface = "0.0.0.0")
 
 # GET
-julia> curl_request("GET", "http://httpbin.org/get", headers = headers,
-    query = Dict{String,String}("qry" => "你好嗎"))
+julia> curl_get("http://httpbin.org/get", query = Dict{String,String}("qry" => "你好嗎"))
+
+# DELETE
+julia> curl_delete("http://httpbin.org/delete", query = Dict{String,String}("qry" => "你好嗎"))
 
 # POST
-julia> curl_request("POST", "http://httpbin.org/post", headers = headers,
-    query = "qry=你好嗎", body = "{\"data\":\"hi\"}")
+julia> curl_post("http://httpbin.org/post", query = "qry=你好嗎", body = "{\"data\":\"hi\"}")
 
 # PUT
-julia> curl_request("PUT", "http://httpbin.org/put", headers = headers,
-    query = "qry=你好嗎", body = "{\"data\":\"hi\"}")
+julia> curl_put("http://httpbin.org/put", query = "qry=你好嗎", body = "{\"data\":\"hi\"}")
 
 # PATCH
-julia> curl_request("PATCH", "http://httpbin.org/patch", headers = headers,
-    query = "qry=你好嗎", body = "{\"data\":\"hi\"}")
+julia> curl_patch("http://httpbin.org/patch", query = "qry=你好嗎", body = "{\"data\":\"hi\"}")
 ```
 
 This example shows how to use `CurlClient` for making HTTP requests by reusing the same client instance, which can help in speeding up the requests when making multiple calls to the same server:
@@ -115,7 +108,7 @@ response = curl_request(
 julia> curl_status(response)
 200
 
-julia> String(curl_body(response))
+julia> curl_body(response) |> String |> print
 {
   "headers": {
     "X-Amzn-Trace-Id": "Root=1-6588a009-19f3dc0321bee38106226bb3",
@@ -137,14 +130,8 @@ Example of error handling with `EasyCurl`:
 ```julia
 using EasyCurl
 
-headers = Pair{String,String}[
-    "User-Agent" => "EasyCurl.jl",
-    "Content-Type" => "application/json",
-]
-
 try
-    response = curl_request("GET", "http://httpbin.org/status/400", query = "echo=你好嗎",
-        headers = headers, interface = "0.0.0.0", read_timeout = 30, retry = 1)
+    curl_request("GET", "http://httpbin.org/status/400", read_timeout = 30)
     # If the request is successful, you can process the response here
     # ...
 catch e
@@ -154,9 +141,19 @@ catch e
         # Handle the case where the operation timed out
     elseif isa(e, CurlStatusError{400})
         # Handle a 400 Bad Request error specifically
-        rethrow(e)
     end
+    rethrow(e)
 end
+```
+
+Using `curl_joinurl`
+
+```julia
+julia> curl_joinurl("http://example.com", "path")
+"http://example.com/path"
+
+julia> curl_joinurl("http://example.com/", "/path/to/resource")
+"http://example.com/path/to/resource"
 ```
 
 ### Using a proxy with EasyCurl
