@@ -1,4 +1,6 @@
-# test/integration
+#__ integration
+
+import EasyCurl: urlencode_query_params
 
 const headers = [
     "User-Agent" => "EasyCurl.jl",
@@ -9,153 +11,148 @@ const query = Dict{String,Any}(
     "echo" => "你好嗎"
 )
 
-const payload = EasyCurl.urlencode_query_params(Dict{String,Any}(
-    "echo" => "hello"
-))
+const payload = urlencode_query_params(
+    Dict{String,Any}("echo" => "hello")
+)
 
-@testset verbose = true "HTTP Requests" begin
-    # Couldn't resolve host name
+@testset "HTTP Requests" begin
+    # Test for nonexistent host error
     @testset "Nonexistent host error" begin
-        @test_throws "EasyCurlError{6}(Couldn't resolve host name)" EasyCurl.get(
+        @test_throws "CurlError{6}(Couldn't resolve host name)" curl_get(
             "https://bar-foo.foo/get",
-            headers = headers,
-            query = query,
             read_timeout = 30,
+            verbose = true,
         )
     end
 
-    # GET request test
+    # Test for GET request
     @testset "GET request" begin
-        response = EasyCurl.get(
-            "httpbin.org/get",
-            headers = headers,
-            query = query,
-            read_timeout = 30,
-        )
-        @test response.status == 200
-
-        body = JSON.parse(String(response.body))
+        response = curl_get("httpbin.org/get", query = query, read_timeout = 30)
+        @test curl_status(response) == 200
+        body = parse_json(curl_body(response))
         @test body["args"] == query
         @test body["url"] == "http://httpbin.org/get?echo=你好嗎"
     end
 
-    # HEAD request test
+    # Test for HEAD request
     @testset "HEAD request" begin
-        response = EasyCurl.head(
+        response = curl_head(
             "httpbin.org/get",
             headers = headers,
-            query = query,
             read_timeout = 30,
+            verbose = true,
         )
-        @test response.status == 200
-        @test isempty(response.body)
+        @test curl_status(response) == 200
+        @test isempty(curl_body(response))
     end
 
-    # POST request test
+    # Test for POST request
     @testset "POST request" begin
-        response = EasyCurl.post(
+        response = curl_post(
             "httpbin.org/post",
             headers = headers,
-            query = query,
             body = payload,
             read_timeout = 30,
+            verbose = true,
         )
-        @test response.status == 200
-
-        body = JSON.parse(String(response.body))
+        @test curl_status(response) == 200
+        body = parse_json(curl_body(response))
         @test body["data"] == payload
     end
 
-    # PUT request test
+    # Test for PUT request
     @testset "PUT request" begin
-        response = EasyCurl.put(
+        response = curl_put(
             "httpbin.org/put",
             headers = headers,
-            query = query,
             body = payload,
             read_timeout = 30,
+            verbose = true,
         )
-        @test response.status == 200
-
-        body = JSON.parse(String(response.body))
+        @test curl_status(response) == 200
+        body = parse_json(curl_body(response))
         @test body["data"] == payload
     end
 
-    # PATCH request test
+    # Test for PATCH request
     @testset "PATCH request" begin
-        response = EasyCurl.patch(
+        response = curl_patch(
             "httpbin.org/patch",
             headers = headers,
             query = query,
             body = payload,
             read_timeout = 30,
+            verbose = true,
         )
-        @test response.status == 200
-
-        body = JSON.parse(String(response.body))
+        @test curl_status(response) == 200
+        body = parse_json(curl_body(response))
         @test body["data"] == payload
     end
 
-    # DELETE request test
+    # Test for DELETE request
     @testset "DELETE request" begin
-        response = EasyCurl.delete(
+        response = curl_delete(
             "httpbin.org/delete",
             headers = headers,
-            query = query,
-            body = payload,
             read_timeout = 30,
+            verbose = true,
         )
-        @test response.status == 200
-
-        body = JSON.parse(String(response.body))
-        @test body["data"] == payload
+        @test curl_status(response) == 200
     end
 end
 
 @testset verbose = true "Optional interface" begin
-    server = Sockets.listen(Sockets.localhost, 1234)
+    server_setup = quote
+        using Sockets
 
-    @async while isopen(server)
-        sock = accept(server)
-        @async while isopen(sock)
-            echo = Sockets.readavailable(sock)
-            println(String(echo))
-            write(
-                sock,
-                "HTTP/1.1 200 OK\r\n" *
-                "Server: TestServer\r\n" *
-                "Content-Type: text/html; charset=utf-8\r\n" *
-                "User-Agent: EasyCurl.jl\r\n" *
-                "\r\n" *
-                "<h1>Hello</h1>\n",
-            )
-            close(sock)
+        port_hint = 9000 + (getpid() % 1000)
+        port::UInt64, uv_server = listenany(port_hint)
+
+        println(stdout, port)
+        flush(stdout)
+
+        while isopen(uv_server)
+            sock = accept(uv_server)
+            @async while isopen(sock)
+                echo = Sockets.readavailable(sock)
+                println(String(echo))
+                write(
+                    sock,
+                    "HTTP/1.1 200 OK\r\n" *
+                    "Server: TestServer\r\n" *
+                    "Content-Type: text/html; charset=utf-8\r\n" *
+                    "User-Agent: EasyCurl.jl\r\n" *
+                    "\r\n" *
+                    "<h1>Hello</h1>\n",
+                )
+                close(sock)
+            end
         end
     end
 
-    sleep(2)
+    server_procs = open(`$(Base.julia_cmd()) -e $server_setup`, "w+")
+    port_str = readline(server_procs)
 
-    @test_throws "EasyCurlError{45}(Failed binding local connection end)" EasyCurl.get(
-        "http://127.0.0.1:1234",
-        headers = ["User-Agent" => "EasyCurl.jl"],
+    @test_throws "CurlError{45}(Failed binding local connection end)" curl_get(
+        "http://127.0.0.1:$(port_str)",
         interface = "10.10.10.10",
         read_timeout = 30,
         verbose = true,
     )
 
-    response = EasyCurl.get(
-        "http://127.0.0.1:1234",
+    response = curl_get(
+        "http://127.0.0.1:$(port_str)",
         headers = ["User-Agent" => "EasyCurl.jl"],
         interface = "0.0.0.0",
         read_timeout = 30,
-        retries = 10,
+        retry = 10,
         verbose = true,
     )
 
-    @test response.status == 200
-    @test String(response.body) == "<h1>Hello</h1>\n"
-    @test EasyCurl.headers(response, "User-Agent")[] == "EasyCurl.jl"
-    @test EasyCurl.headers(response, "user-agent")[] == "EasyCurl.jl"
+    @test curl_status(response)                     == 200
+    @test curl_body(response)                 == b"<h1>Hello</h1>\n"
+    @test curl_header(response, "User-Agent") == "EasyCurl.jl"
+    @test curl_header(response, "user-agent") == "EasyCurl.jl"
 
-    close(server)
+    kill(server_procs, Base.SIGKILL)
 end

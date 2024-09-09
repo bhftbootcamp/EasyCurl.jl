@@ -1,43 +1,37 @@
-"""
-    EasyCurl.urlencode(s::AbstractString)
+#__ Utils
 
-Encode a string `s` into URI using only the US-ASCII characters legal within a URI.
-
-## Examples
-
-```julia-repl
-julia> EasyCurl.urlencode("[curl]")
-"%5Bcurl%5D"
-```
-"""
 function urlencode(s::AbstractString)
-    curl = curl_easy_init()
-    esc_s = urlencode(curl, s)
-    curl_easy_cleanup(curl)
-    return esc_s
+    c = CurlClient()
+    try
+        urlencode(c, s)
+    finally
+        close(c)
+    end
 end
 
-function urlencode(curl, s::AbstractString)
-    b_arr = curl_easy_escape(curl, s, sizeof(s))
+function urlencode(c::CurlClient, s::AbstractString)
+    b_arr = curl_easy_escape(c, s, sizeof(s))
     esc_s = unsafe_string(b_arr)
     curl_free(b_arr)
     return esc_s
 end
 
 function urlencode_query_params(params::AbstractDict{String,T}) where {T<:Any}
-    curl = curl_easy_init()
-    esc_s = urlencode_query_params(curl, params)
-    curl_easy_cleanup(curl)
-    return esc_s
+    c = CurlClient()
+    try
+        urlencode_query_params(c, params)
+    finally
+        close(c)
+    end
 end
 
-function urlencode_query_params(curl, params::AbstractDict{String,T}) where {T<:Any}
+function urlencode_query_params(c::CurlClient, params::AbstractDict{String,T}) where {T<:Any}
     str = ""
     for (k, v) in params
         if v !== ""
-            ep = urlencode(curl, string(k)) * "=" * urlencode(curl, string(v))
+            ep = urlencode(c, string(k)) * "=" * urlencode(c, string(v))
         else
-            ep = urlencode(curl, string(k))
+            ep = urlencode(c, string(k))
         end
         if str == ""
             str = ep
@@ -48,34 +42,24 @@ function urlencode_query_params(curl, params::AbstractDict{String,T}) where {T<:
     return str
 end
 
-"""
-    EasyCurl.urldecode(s::AbstractString)
-
-Decode an encoded URI string `s` back to normal string.
-
-## Examples
-
-```julia-repl
-julia> EasyCurl.urldecode("%5Bcurl%5D")
-"[curl]"
-```
-"""
 function urldecode(s::AbstractString)
-    curl = curl_easy_init()
-    unesc_s = urldecode(curl, s)
-    curl_easy_cleanup(curl)
-    return unesc_s
+    c = CurlClient()
+    try
+        urldecode(c, s)
+    finally
+        close(c)
+    end
 end
 
-function urldecode(curl, s::AbstractString)
-    b_arr = curl_easy_unescape(curl, s, 0, C_NULL)
+function urldecode(c::CurlClient, s::AbstractString)
+    b_arr = curl_easy_unescape(c, s, 0, C_NULL)
     unesc_s = unsafe_string(b_arr)
     curl_free(b_arr)
     return unesc_s
 end
 
 """
-    EasyCurl.joinurl(basepart::AbstractString, parts::AbstractString...)::String
+    curl_joinurl(basepart::AbstractString, parts::AbstractString...)::String
 
 Construct a URL by concatenating a base part with one or more path segments. This function
 ensures that each segment is separated by a single forward slash (`/`), regardless of whether
@@ -84,14 +68,14 @@ the `basepart` or `parts` already contain slashes at their boundaries.
 ## Examples
 
 ```julia-repl
-julia> EasyCurl.joinurl("http://example.com", "path")
+julia> curl_joinurl("http://example.com", "path")
 "http://example.com/path"
 
-julia> EasyCurl.joinurl("http://example.com/", "/path/to/resource")
+julia> curl_joinurl("http://example.com/", "/path/to/resource")
 "http://example.com/path/to/resource"
 ```
 """
-function joinurl(basepart::AbstractString, parts::AbstractString...)::String
+function curl_joinurl(basepart::AbstractString, parts::AbstractString...)::String
     basepart = endswith(basepart, "/") ? basepart[1:end-1] : basepart
     parts = filter(!isempty, parts)
     parts = map(p -> startswith(p, "/") ? p[2:end] : p, parts)
@@ -99,21 +83,24 @@ function joinurl(basepart::AbstractString, parts::AbstractString...)::String
     return join([basepart, parts...], "/")
 end
 
-function parse_headers(headers::AbstractString)
-    matches = match.(r"^(.*?):\s*(.*?)$", split(headers, "\r\n"))
-    result = Pair{String,String}[]
-    for m in matches
+function parse_headers(x::AbstractString)
+    h = Pair{String,String}[]
+    for m in match.(r"^(.*?):\s*(.*?)$", split(x, "\r\n"))
         isnothing(m) && continue
-        push!(result, lowercase(m[1]) => m[2])
+        push!(h, lowercase(m[1]) => m[2])
     end
-    return result
+    return h
+end
+
+function parse_headers(x::Vector{UInt8})
+    return parse_headers(unsafe_string(pointer(x), length(x)))
 end
 
 to_query_decode(curl, ::Nothing) = ""
 to_query_decode(curl, x::S) where {S<:AbstractString} = x
 to_query_decode(curl, x::AbstractDict) = urlencode_query_params(curl, x)
 
-function rq_url(curl, url::AbstractString, query)
+function req_url(curl, url::AbstractString, query)
     kv = to_query_decode(curl, query)
     return isempty(kv) ? url : url * "?" * kv
 end
@@ -121,3 +108,15 @@ end
 to_bytes(::Nothing) = Vector{UInt8}()
 to_bytes(x::S) where {S<:AbstractString} = Vector{UInt8}(x)
 to_bytes(x::Vector{UInt8}) = x
+
+function http_version_as_string(v::Int64)
+    if v == CURL_HTTP_VERSION_1_0
+        "1.0"
+    elseif v == CURL_HTTP_VERSION_1_1
+        "1.1"
+    elseif v == CURL_HTTP_VERSION_2_0
+        "2.0"
+    else
+        "undef"
+    end
+end
