@@ -1,15 +1,8 @@
 #__ integration
 
-const headers = [
-    "User-Agent" => "EasyCurl.jl",
-    "Content-Type" => "application/json"
-]
-
 const query = Dict{String,Any}(
     "echo" => "你好嗎"
 )
-
-const payload = "echo=hello"
 
 @testset "HTTP Requests" begin
     # Test for nonexistent host error
@@ -34,7 +27,9 @@ const payload = "echo=hello"
     @testset "HEAD request" begin
         response = http_head(
             "httpbin.org/get",
-            headers = headers,
+            headers = headers = [
+                "Content-Type" => "application/json"
+            ],
             read_timeout = 30,
             verbose = true,
         )
@@ -46,50 +41,58 @@ const payload = "echo=hello"
     @testset "POST request" begin
         response = http_post(
             "httpbin.org/post",
-            headers = headers,
-            body = payload,
+            headers = headers = [
+                "Content-Type" => "application/json"
+            ],
+            body = "echo=hello",
             read_timeout = 30,
             verbose = true,
         )
         @test http_status(response) == 200
         body = parse_json(http_body(response))
-        @test body["data"] == payload
+        @test body["data"] == "echo=hello"
     end
 
     # Test for PUT request
     @testset "PUT request" begin
         response = http_put(
             "httpbin.org/put",
-            headers = headers,
-            body = payload,
+            headers = headers = [
+                "Content-Type" => "application/json"
+            ],
+            body = "echo=hello",
             read_timeout = 30,
             verbose = true,
         )
         @test http_status(response) == 200
         body = parse_json(http_body(response))
-        @test body["data"] == payload
+        @test body["data"] == "echo=hello"
     end
 
     # Test for PATCH request
     @testset "PATCH request" begin
         response = http_patch(
             "httpbin.org/patch",
-            headers = headers,
+            headers = headers = [
+                "Content-Type" => "application/json"
+            ],
             query = query,
-            body = payload,
+            body = "echo=hello",
             read_timeout = 30,
             verbose = true,
         )
         @test http_status(response) == 200
         body = parse_json(http_body(response))
-        @test body["data"] == payload
+        @test body["data"] == "echo=hello"
     end
 
     # Test for DELETE request
     @testset "DELETE request" begin
         response = http_delete(
             "httpbin.org/delete",
-            headers = headers,
+            headers = headers = [
+                "Content-Type" => "application/json"
+            ],
             read_timeout = 30,
             verbose = true,
         )
@@ -97,7 +100,7 @@ const payload = "echo=hello"
     end
 end
 
-@testset verbose = true "Optional interface" begin
+@testset "Optional interface" begin
     server_setup = quote
         using Sockets
 

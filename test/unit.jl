@@ -1,31 +1,29 @@
 #__ unit
 
 @testset verbose = true "URL Encoding" begin
-    
+
     @testset "URL Query Parameter Encoding" begin
         idle = CurlClient()
         try
             @test EasyCurl.to_query(idle, Dict{String,Any}()) == ""
             @test EasyCurl.to_query(idle, Dict{String,Any}("a" => "b")) == "a=b"
-    
+
             encoded_params = EasyCurl.to_query(idle, Dict{String,Any}("a" => "1", "b" => "2", "c" => "c"))
             @test contains(encoded_params, "a=1")
             @test contains(encoded_params, "b=2")
             @test contains(encoded_params, "c=c")
-    
+
             encoded_params = EasyCurl.to_query(idle, Dict{String,Any}("a" => 1, "b" => 1.0, "c" => 'c'))
             @test contains(encoded_params, "a=1")
             @test contains(encoded_params, "b=1.0")
             @test contains(encoded_params, "c=c")
-    
+
             encoded_params = EasyCurl.to_query(idle, Dict{String,Any}("a" => "b", "a" => nothing, "c" => missing))
             @test contains(encoded_params, "c=missing")
             @test contains(encoded_params, "a=nothing")
-        catch
-            rethrow()
         finally
             close(idle)
-        end 
+        end
     end
 
     @testset "URL Component Encoding" begin
@@ -36,8 +34,6 @@
             @test EasyCurl.urlencode(idle, "http://blabla.mge:9000?c=c&b=1.0&a=1") == "http%3A%2F%2Fblabla.mge%3A9000%3Fc%3Dc%26b%3D1.0%26a%3D1"
             @test EasyCurl.urlencode(idle, "http://blabla.mge:9000?") == "http%3A%2F%2Fblabla.mge%3A9000%3F"
             @test EasyCurl.urlencode(idle, SubString("http://blabla.mge:9000?c=c&b=1.0&a=1", 2)) == "ttp%3A%2F%2Fblabla.mge%3A9000%3Fc%3Dc%26b%3D1.0%26a%3D1"
-        catch
-            rethrow()
         finally
             close(idle)
         end
@@ -51,8 +47,6 @@
             @test EasyCurl.urldecode(idle, "http%3A%2F%2Fblabla.mge%3A9000%3Fc%3Dc%26b%3D1.0%26a%3D1") == "http://blabla.mge:9000?c=c&b=1.0&a=1"
             @test EasyCurl.urldecode(idle, "http%3A%2F%2Fblabla.mge%3A9000%3F") == "http://blabla.mge:9000?"
             @test EasyCurl.urldecode(idle, SubString("http%3A%2F%2Fblabla.mge%3A9000%3Fc%3Dc%26b%3D1.0%26a%3D1", 2)) == "ttp://blabla.mge:9000?c=c&b=1.0&a=1"
-        catch
-            rethrow()
         finally
             close(idle)
         end
@@ -68,8 +62,6 @@
                 decoded_str = EasyCurl.urldecode(idle, encoded_str)
                 @test random_str == decoded_str
             end
-        catch
-            rethrow()
         finally
             close(idle)
         end
