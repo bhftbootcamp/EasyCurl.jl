@@ -3,8 +3,9 @@ module EasyCurl
 export CurlClient,
     CurlError
 
-export curl_open
-
+export curl_open,
+    curl_joinurl
+    
 using LibCURL
 
 abstract type CurlOptions end
