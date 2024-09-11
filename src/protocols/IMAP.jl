@@ -8,7 +8,18 @@ export IMAPResponse,
     IMAPRequest,
     IMAPOptions
 
-mutable struct IMAPResponse <: CurlResponce
+"""
+    IMAPResponse <: CurlResponse
+
+An IMAP response object returned on a request completion.
+
+## Fields
+| Name | Description | Accessors (`get`) |
+|:-----|:------------|:------------------|
+| `request_time::Float64` | Total time spent receiving a response in seconds. | `imap_request_time(x)` |
+| `body::Vector{UInt8}` | The response body as a vector of bytes. | `imap_body(x)` |
+"""
+mutable struct IMAPResponse <: CurlResponse
     request_time::Float64
     body::Vector{UInt8}
 
@@ -17,48 +28,37 @@ mutable struct IMAPResponse <: CurlResponce
     end
 end
 
-"""
-    imap_request_time(x::IMAPResponse) -> Float64
-
-Extracts the total request time for the HTTP request that resulted in the [`IMAPResponse`](@ref).
-
-## Examples
-
-```julia-repl
-julia> response = imap_request("GET", "http://httpbin.org/get")
-
-julia> imap_request_time(response)
-0.384262
-```
-"""
 imap_request_time(x::IMAPResponse) = x.request_time
-
-"""
-    imap_body(x::IMAPResponse) -> String
-
-Extracts the body of the IMAP response as a string.
-
-## Examples
-
-```julia-repl
-julia> response = imap_request(
-    curl_client,
-    "imaps://imap.gmail.com:993/INBOX",
-    "your_imap_username",
-    "your_imap_password",
-    command = "SEARCH SINCE 09-Sep-2024",
-)
-
-julia> imap_body(response) |> String |> print
-* SEARCH 1399 1400 1401 1402 1403 1404 1405 1406 1407 1408 1409 1410 1411 1412 1413 1414 1415 1416
-```
-"""
 imap_body(x::IMAPResponse) = x.body
 
+function Base.show(io::IO, x::IMAPResponse)
+    println(io, IMAPResponse)
+    if length(imap_body(x)) > 1000
+        v = view(imap_body(x), 1:1000)
+        print(io, "    ", strip(String(v)))
+        println(io, "\n    ⋮")
+    else
+        v = view(imap_body(x), 1:length(imap_body(x)))
+        println(io, "    ", strip(String(v)))
+    end
+end
+
+"""
+    IMAPOptions <: CurlOptions
+
+Represents options for configuring an IMAP request.
+
+## Fields
+| Name | Description | Default |
+|:-----|:------------|:--------|
+| `read_timeout::Real` | Timeout in seconds for reading the response. | `30` |
+| `connect_timeout::Real` | Maximum time in seconds that you allow the connection phase to take. | `10` |
+| `ssl_verifyhost::Bool` | Enables SSL certificate's host verification. | `true` |
+| `ssl_verifypeer::Bool` | Enables the SSL certificate verification. | `true` |
+| `verbose::Bool` | Enables detailed output from Curl (useful for debugging). | `false` |
+| `interface::Union{String,Nothing}` | Specifies a particular network interface to use for the request, or `nothing` to use the default. | `nothing` |
+"""
 struct IMAPOptions <: CurlOptions
-    ssl::Bool
-    starttls::Bool
-    mailbox::Union{String,Nothing}
     read_timeout::Int
     connect_timeout::Int
     ssl_verifyhost::Bool
@@ -67,9 +67,6 @@ struct IMAPOptions <: CurlOptions
     interface::Union{String,Nothing}
 
     function IMAPOptions(;
-        ssl = true,
-        starttls = false,
-        mailbox = nothing,
         read_timeout = 30,
         connect_timeout = 10,
         ssl_verifyhost = true,
@@ -78,9 +75,6 @@ struct IMAPOptions <: CurlOptions
         interface = nothing,
     )
         return new(
-            ssl,
-            starttls,
-            mailbox,
             read_timeout,
             connect_timeout,
             ssl_verifyhost,
@@ -99,6 +93,8 @@ struct IMAPRequest <: CurlRequest
     options::IMAPOptions
     response::IMAPResponse
 end
+
+#__ libcurl
 
 function perform_request(c::CurlClient, r::IMAPRequest)
     curl_easy_setopt(c, CURLOPT_URL, r.url)
@@ -125,9 +121,36 @@ function perform_request(c::CurlClient, r::IMAPRequest)
     return nothing
 end
 
-function imap_request(url::String, x...; kw...)
-    return curl_open(c -> imap_request(c, url, x...; kw...))
-end
+"""
+    imap_request(url::String, username::String, password::String; kw...) -> IMAPResponse
+
+Send a `url` IMAP request using `username` and `password`, then return a [`IMAPResponse`](@ref) object.
+
+## Keyword arguments
+| Name | Description | Default |
+|:-----|:------------|:--------|
+| `mailbox::Union{Nothing,String}` | Required mailbox. | `nothing` |
+| `command` | Available IMAP commands after authentication. | `nothing` |
+| `path::Union{Nothing,String}` | The specific path or criteria of the query. | `nothing` |
+| `retry::Int64` | Number of retries. | `0` |
+| `retry_delay::Real` | Delay after failed request. | `0.25` |
+| `options...` | Another IMAP request [options](@ref IMAPOptions). |  |
+
+## Examples
+
+```julia-repl
+julia> response = imap_request(
+           "imaps://imap.gmail.com:993/INBOX",
+           "your_imap_username",
+           "your_imap_password",
+           command = "SEARCH SINCE 09-Sep-2024",
+       );
+
+julia> imap_body(response) |> String |> print
+* SEARCH 1399 1400 1401 1402 1403 1404 1405 1406 1407 1408 1409 1410
+```
+"""
+function imap_request end
 
 function imap_request(
     client::CurlClient,
@@ -153,4 +176,8 @@ function imap_request(
         perform_request(client, req)
         req.response
     end
+end
+
+function imap_request(url::String, x...; kw...)
+    return curl_open(c -> imap_request(c, url, x...; kw...))
 end

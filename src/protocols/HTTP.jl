@@ -26,11 +26,9 @@ export HTTPResponse,
 
 Maps CURL numerical constants for HTTP versions to their string representations.
 
-## Mappings
-
-- `CURL_HTTP_VERSION_1_0 => "1.0"`: HTTP 1.0
-- `CURL_HTTP_VERSION_1_1 => "1.1"`: HTTP 1.1
-- `CURL_HTTP_VERSION_2_0 => "2.0"`: HTTP 2.0
+- `0x00000001` (`CURL_HTTP_VERSION_1_0`) - `"1.0"`: HTTP 1.0
+- `0x00000002` (`CURL_HTTP_VERSION_1_1`) - `"1.1"`: HTTP 1.1
+- `0x00000003` (`CURL_HTTP_VERSION_2_0`) - `"2.0"`: HTTP 2.0
 """
 const HTTP_VERSION_MAP = Dict{UInt64,String}(
     CURL_HTTP_VERSION_1_0 => "1.0",
@@ -39,19 +37,20 @@ const HTTP_VERSION_MAP = Dict{UInt64,String}(
 )
 
 """
-    HTTPResponse()
+    HTTPResponse <: CurlResponse
 
 An HTTP response object returned on a request completion.
 
 ## Fields
-
-- `status::Ref{UInt64}`: The HTTP status code of the response as a reference to an unsigned 64-bit integer.
-- `version::Ref{UInt64}`: The HTTP version received in the response as a reference to an unsigned 64-bit integer.
-- `request_time::Ref{Float64}`: The time taken for the HTTP request in seconds as a reference to a floating-point number.
-- `headers::Vector{Pair{String, String}}`: Headers received in the HTTP response.
-- `body::Vector{UInt8}`: The response body as a vector of bytes.
+| Name | Description | Accessors (`get`) |
+|:-----|:------------|:------------------|
+| `status::Int` | The HTTP status code of the response. | `http_status(x)` |
+| `version::Int` | The HTTP version received in the response. | `http_version(x)` |
+| `request_time::Float64` | Total time spent receiving a response in seconds. | `http_request_time(x)` |
+| `body::Vector{UInt8}` | The response body as a vector of bytes. | `http_body(x)` |
+| `headers::Vector{Pair{String,String}}` | Headers received in the HTTP response. | `http_headers(x)` |
 """
-mutable struct HTTPResponse <: CurlResponce
+mutable struct HTTPResponse <: CurlResponse
     status::Int
     version::Int
     request_time::Float64
@@ -63,56 +62,30 @@ mutable struct HTTPResponse <: CurlResponce
     end
 end
 
+http_status(x::HTTPResponse) = x.status
+http_version(x::HTTPResponse) = x.version
+http_request_time(x::HTTPResponse) = x.request_time
+http_body(x::HTTPResponse) = x.body
+http_headers(x::HTTPResponse) = x.headers
+
 function Base.show(io::IO, x::HTTPResponse)
     println(io, HTTPResponse)
     println(io, "\"\"\"")
-    print(io, "HTTP/", Base.get(HTTP_VERSION_MAP, x.version, "1.1"))
-    println(io, " $(x.status) $(Base.get(HTTP_STATUS_CODES, x.status, ""))")
-    for (k, v) in x.headers
+    print(io, "HTTP/", Base.get(HTTP_VERSION_MAP, http_version(x), "1.1"))
+    println(io, " ", http_status(x), " ", Base.get(HTTP_STATUS_CODES, x.status, ""))
+    for (k, v) in http_headers(x)
         println(io, "$k: '$v'")
     end
     println(io, "\"\"\"")
-    if length(x.body) > 1000
-        v = view(x.body, 1:1000)
+    if length(http_body(x)) > 1000
+        v = view(http_body(x), 1:1000)
         print(io, "    ", strip(String(v)))
         println(io, "\n    ⋮")
     else
-        v = view(x.body, 1:length(x.body))
+        v = view(http_body(x), 1:length(http_body(x)))
         println(io, "    ", strip(String(v)))
     end
 end
-
-"""
-    http_status(x::HTTPResponse) -> Int
-
-Extracts the HTTP status code from a [`HTTPResponse`](@ref) object.
-
-## Examples
-
-```julia-repl
-julia> response = http_request("GET", "http://httpbin.org/get")
-
-julia> http_status(response)
-200
-```
-"""
-http_status(x::HTTPResponse) = x.status
-
-"""
-    http_request_time(x::HTTPResponse) -> Float64
-
-Extracts the total request time for the HTTP request that resulted in the [`HTTPResponse`](@ref).
-
-## Examples
-
-```julia-repl
-julia> response = http_request("GET", "http://httpbin.org/get")
-
-julia> http_request_time(response)
-0.384262
-```
-"""
-http_request_time(x::HTTPResponse) = x.request_time
 
 """
     http_iserror(x::HTTPResponse) -> Bool
@@ -122,7 +95,7 @@ Determines if the HTTP response indicates an error (status codes 400 and above).
 ## Examples
 
 ```julia-repl
-julia> response = http_request("GET", "http://httpbin.org/get")
+julia> response = http_request("GET", "http://httpbin.org/get");
 
 julia> http_iserror(response)
 false
@@ -131,70 +104,22 @@ false
 http_iserror(x::HTTPResponse) = http_status(x) >= 400
 
 """
-    http_body(x::HTTPResponse) -> String
+    http_headers(x::HTTPResponse, key::String) -> Vector{String}
 
-Extracts the body of the HTTP response as a string.
-
-## Examples
-
-```julia-repl
-julia> response = http_request("GET", "http://httpbin.org/get")
-
-julia> http_body(response) |> String |> print
-{
-  "args": {},
-  "headers": {
-    "Accept": "*/*",
-    "Host": "httpbin.org",
-    "User-Agent": "EasyCurl/3.0.0",
-    "X-Amzn-Trace-Id": "Root=1-66d985f2-4f01659e569022ee4dc145a8"
-  },
-  "origin": "95.217.119.142",
-  "url": "http://httpbin.org/get"
-}
-```
-"""
-http_body(x::HTTPResponse) = x.body
-
-"""
-    http_headers(x::HTTPResponse) -> Dict{String, String}
-
-Extracts all headers from a [`HTTPResponse`](@ref) object as a dictionary.
+Retrieve all values for a specific header field from a [`HTTPResponse`](@ref) object.
+This function is case-insensitive with regard to the header field name.
 
 ## Examples
 
 ```julia-repl
-julia> response = http_request("GET", "http://httpbin.org/get")
-
-julia> http_headers(response)
-7-element Vector{Pair{String, String}}:
-"date" => "Thu, 05 Sep 2024 10:24:48 GMT"
-"content-type" => "application/json"
-"content-length" => "258"
-"connection" => "keep-alive"
-"server" => "gunicorn/19.9.0"
-"access-control-allow-origin" => "*"
-"access-control-allow-credentials" => "true"
-```
-"""
-http_headers(x::HTTPResponse) = x.headers
-
-"""
-    http_headers(x::HTTPResponse, key::AbstractString) -> Vector{String}
-
-Retrieve all values for a specific header field from a [`HTTPResponse`](@ref) object. This function is case-insensitive with regard to the header field name.
-
-## Examples
-
-```julia-repl
-julia> response = http_request("GET", "http://httpbin.org/get")
+julia> response = http_request("GET", "http://httpbin.org/get");
 
 julia> http_headers(response, "Content-Type")
 1-element Vector{String}:
  "application/json"
 
 julia> http_headers(response, "nonexistent-header")
- String[]
+String[]
 ```
 """
 function http_headers(x::HTTPResponse, key::AbstractString)
@@ -206,9 +131,11 @@ function http_headers(x::HTTPResponse, key::AbstractString)
 end
 
 """
-    http_header(x::HTTPResponse, key::AbstractString, def = nothing) -> Union{String, Nothing}
+    http_header(x::HTTPResponse, key::String, default = nothing)
 
-Retrieve the first value of a specific header field from a [`HTTPResponse`](@ref) object. If the header is not found, the function returns a default value. This function is case-insensitive with regard to the header field name.
+Retrieve the first value of a specific header field by `key` from a [`HTTPResponse`](@ref) object.
+If the header is not found, the function returns a `default` value.
+This function is case-insensitive with regard to the header field name.
 
 ## Examples
 
@@ -235,20 +162,21 @@ end
 Represents options for configuring an HTTP request.
 
 ## Fields
-
-- `location::Bool`: If `true`, enables following HTTP redirects.
-- `max_redirs::Int`: Maximum number of redirects to follow.
-- `connect_timeout::Int`: Timeout in seconds for establishing a connection.
-- `read_timeout::Int`: Timeout in seconds for reading the response.
-- `ssl_verifyhost::Bool`: If `true`, the SSL certificate's host will be verified.
-- `ssl_verifypeer::Bool`: If `true`, the SSL certificate will be verified.
-- `verbose::Bool`: If `true`, enables detailed output from Curl, useful for debugging.
-- `username::Union{String,Nothing}`: Username for authentication, or `nothing` if not required.
-- `password::Union{String,Nothing}`: Password for authentication, or `nothing` if not required.
-- `proxy::Union{String,Nothing}`: Proxy server URL, or `nothing` to bypass proxy settings.
-- `interface::Union{String,Nothing}`: Specifies a particular network interface to use for the request, or `nothing` to use the default.
-- `accept_encoding::Union{String,Nothing}`: Specifies the accepted encodings for the response, such as `"gzip"`. Defaults to `nothing` if not set.
-- `version::Union{UInt,Nothing}`: Specifies the CURL version to use, or `nothing` to use the default version available.
+| Name | Description | Default |
+|:-----|:------------|:--------|
+| `location::Bool` | Allow HTTP redirects. | `true` |
+| `max_redirs::Int` | Maximum number of redirects. | `10` |
+| `connect_timeout::Real` | Maximum time in seconds that you allow the connection phase to take. | `10` |
+| `read_timeout::Real` | Timeout in seconds for reading the response. | `30` |
+| `ssl_verifyhost::Bool` | Enables SSL certificate's host verification. | `true` |
+| `ssl_verifypeer::Bool` | Enables the SSL certificate verification. | `true` |
+| `verbose::Bool` | Enables detailed output from Curl (useful for debugging). | `false` |
+| `username::Union{String,Nothing}` | Username for authentication. | `nothing` |
+| `password::Union{String,Nothing}` | Password for authentication. | `nothing` |
+| `proxy::Union{String,Nothing}` | Proxy server URL, or `nothing` to bypass proxy settings. | `nothing` |
+| `interface::Union{String,Nothing}` | Specifies a particular network interface to use for the request, or `nothing` to use the default. | `nothing` |
+| `accept_encoding::String` | Specifies the accepted encodings for the response, such as `"gzip"`. | `"gzip"` |
+| `version::Union{UInt,Nothing}` | Specifies the CURL version to use, or `nothing` to use the default version available. | `nothing` |
 """
 struct HTTPOptions <: CurlOptions
     location::Bool
@@ -262,7 +190,7 @@ struct HTTPOptions <: CurlOptions
     password::Union{String,Nothing}
     proxy::Union{String,Nothing}
     interface::Union{String,Nothing}
-    accept_encoding::Union{String,Nothing}
+    accept_encoding::String
     version::Union{UInt,Nothing}
 
     function HTTPOptions(;
@@ -313,11 +241,11 @@ Type wrapping HTTP error codes. Returned from [`http_request`](@ref) when an HTT
 
 ```julia-repl
 julia> http_request("GET", "http://httpbin.org/status/400")
-ERROR: HTTPStatusError(BAD_REQUEST)
+ERROR: HTTPStatusError: BAD_REQUEST
 [...]
 
 julia> http_request("GET", "http://httpbin.org/status/404")
-ERROR: HTTPStatusError(NOT_FOUND)
+ERROR: HTTPStatusError: NOT_FOUND
 [...]
 ```
 """
@@ -336,7 +264,7 @@ struct HTTPStatusError <: Exception
 end
 
 function Base.showerror(io::IO, e::HTTPStatusError)
-    print(io, "HTTPStatusError(", e.message, ")")
+    print(io, "HTTPStatusError: ", e.message)
 end
 
 mutable struct HTTPRequest <: CurlRequest
@@ -364,11 +292,8 @@ function perform_request(c::CurlClient, r::HTTPRequest)
     curl_easy_setopt(c, CURLOPT_SSL_VERIFYHOST, r.options.ssl_verifyhost ? 2 : 0)
     curl_easy_setopt(c, CURLOPT_PROXY, something(r.options.proxy, C_NULL))
     curl_easy_setopt(c, CURLOPT_VERBOSE, r.options.verbose)
-
-    if r.options.username !== nothing && r.options.password !== nothing
-        curl_easy_setopt(c, CURLOPT_USERNAME, r.options.username)
-        curl_easy_setopt(c, CURLOPT_PASSWORD, r.options.password)
-    end
+    curl_easy_setopt(c, CURLOPT_USERNAME, something(r.options.username, C_NULL))
+    curl_easy_setopt(c, CURLOPT_PASSWORD, something(r.options.password, C_NULL))
 
     for (k::String, v::String) in r.headers
         r.header_list_ptr = curl_slist_append(r.header_list_ptr, "$k: $v")
@@ -415,56 +340,69 @@ function perform_request(c::CurlClient, r::HTTPRequest)
     r.response.status = get_http_response_status(c)
     r.response.request_time = get_total_request_time(c)
 
-    nothing
+    return nothing
 end
 
 """
-    http_request(method::AbstractString, url::AbstractString; kw...) -> HTTPResponse
+    http_request(method::String, url::String; kw...) -> HTTPResponse
 
-Send a `url` HTTP CurlRequest using as `method` one of `"GET"`, `"POST"`, etc. and return a [`HTTPResponse`](@ref) object.
+Send a `url` HTTP request using as `method` one of `"GET"`, `"POST"`, etc. and return a [`HTTPResponse`](@ref) object.
+
+## Keyword arguments
+| Name | Description | Default |
+|:-----|:------------|:--------|
+| `query` | Request query dictionary or string. | `nothing` |
+| `body` | Request body. | `UInt8[]` |
+| `headers::Vector{Pair{String,String}}` | Request headers. | `Pair{String,String}[]` |
+| `status_exception::Bool` |  Whether to throw an exception if the response status code indicates an error. | `true` |
+| `retry::Int64` | Number of retries. | `0` |
+| `retry_delay::Real` | Delay after failed request. | `0.25` |
+| `options...` | Another HTTP request [options](@ref HTTPOptions). |  |
 
 ## Examples
 
 ```julia-repl
-julia> headers = Pair{String,String}[
-           "User-Agent" => "EasyCurl.jl",
-           "Content-Type" => "application/json"
-       ]
-
-julia> response = http_request("POST", "http://httpbin.org/post", headers = headers, query = "qry=你好嗎",
-    body = "{\\"data\\":\\"hi\\"}", interface = "en0", read_timeout = 5, connect_timeout = 10, retry = 10)
-
-julia> http_status(response)
-200
+julia> response = http_request(
+           "POST",
+           "http://httpbin.org/post",
+           headers = Pair{String,String}[
+               "Content-Type" => "application/json",
+               "User-Agent" => "EasyCurl.jl",
+           ],
+           query = "qry=你好嗎",
+           body = "{\"data\":\"hi\"}",
+           interface = "en0",
+           read_timeout = 5,
+           connect_timeout = 10,
+           retry = 10,
+       );
 
 julia> http_body(response) |> String |> print
 {
+  "args": {
+    "qry": "\u4f60\u597d\u55ce"
+  }, 
+  "data": "{\"data\":\"hi\"}", 
+  "files": {}, 
+  "form": {}, 
   "headers": {
-    "X-Amzn-Trace-Id": "Root=1-6588a009-19f3dc0321bee38106226bb3",
-    "Content-Length": "13",
-    "Host": "httpbin.org",
-    "Accept": "*/*",
-    "Content-Type": "application/json",
-    "Accept-Encoding": "gzip",
-    "User-Agent": "EasyCurl.jl"
-  },
+    "Accept": "*/*", 
+    "Accept-Encoding": "gzip", 
+    "Content-Length": "13", 
+    "Content-Type": "application/json", 
+    "Host": "httpbin.org", 
+    "User-Agent": "EasyCurl.jl", 
+    "X-Amzn-Trace-Id": "Root=1-66e0d404-7597b1921ad026293b805690"
+  }, 
   "json": {
     "data": "hi"
-  },
-  "files": {},
-  "args": {
-    "qry": "你好嗎"
-  },
-  "data": "{\\"data\\":\\"hi\\"}",
-  "url": "http://httpbin.org/post?qry=你好嗎",
-  "form": {},
-  "origin": "100.250.50.140"
+  }, 
+  "origin": "100.250.50.140", 
+  "url": "http://httpbin.org/post?qry=\u4f60\u597d\u55ce"
 }
 ```
 """
-function http_request(method::AbstractString, x...; kw...)
-    return curl_open(c -> http_request(c, method, x...; kw...))
-end
+function http_request end
 
 function http_request(
     client::CurlClient,
@@ -496,9 +434,13 @@ function http_request(
             end
             return r
         finally
-            curl_slist_free_all(req.header_list_ptr)
+            LibCURL.curl_slist_free_all(req.header_list_ptr)
         end
     end
+end
+
+function http_request(method::AbstractString, x...; kw...)
+    return curl_open(c -> http_request(c, method, x...; kw...))
 end
 
 """
@@ -509,31 +451,29 @@ Shortcut for [`http_request`](@ref) function, work similar to `http_request("GET
 ## Examples
 
 ```julia-repl
-julia> headers = Pair{String,String}[
-           "User-Agent" => "EasyCurl.jl",
-           "Content-Type" => "application/json"
-       ]
-
-julia> response = http_get("http://httpbin.org/get", headers = headers,
-    query = Dict{String,String}("qry" => "你好嗎"))
-
-julia> http_status(response)
-200
+julia> response = http_get(
+           "http://httpbin.org/get";
+           headers = Pair{String,String}[
+               "Content-Type" => "application/json",
+               "User-Agent" => "EasyCurl.jl",
+           ],
+           query = Dict("qry" => "你好嗎"),
+       );
 
 julia> http_body(response) |> String |> print
 {
   "args": {
     "qry": "\u4f60\u597d\u55ce"
-  },
+  }, 
   "headers": {
-    "Accept": "*/*",
-    "Accept-Encoding": "gzip",
-    "Content-Type": "application/json",
-    "Host": "httpbin.org",
-    "User-Agent": "EasyCurl.jl",
-    "X-Amzn-Trace-Id": "Root=1-6589e259-24815d6d62da962a06fc7edf"
-  },
-  "origin": "100.250.50.140",
+    "Accept": "*/*", 
+    "Accept-Encoding": "gzip", 
+    "Content-Type": "application/json", 
+    "Host": "httpbin.org", 
+    "User-Agent": "EasyCurl.jl", 
+    "X-Amzn-Trace-Id": "Root=1-66e0e18f-0e26d7757885d0ec1966ef64"
+  }, 
+  "origin": "100.250.50.140", 
   "url": "http://httpbin.org/get?qry=\u4f60\u597d\u55ce"
 }
 ```
@@ -548,16 +488,15 @@ Shortcut for [`http_request`](@ref) function, work similar to `http_request("HEA
 ## Examples
 
 ```julia-repl
-julia> headers = Pair{String,String}[
-           "User-Agent" => "EasyCurl.jl",
-           "Content-Type" => "application/json"
-       ]
-
-julia> response = http_head("http://httpbin.org/get", headers = headers,
-    query = "qry=你好嗎", interface = "0.0.0.0")
-
-julia> http_status(response)
-200
+julia> response = http_head(
+           "http://httpbin.org/get";
+           headers = Pair{String,String}[
+               "Content-Type" => "application/json",
+               "User-Agent" => "EasyCurl.jl",
+           ],
+           query = "qry=你好嗎",
+           interface = "0.0.0.0",
+       );
 
 julia> http_body(response)
 UInt8[]
@@ -573,38 +512,37 @@ Shortcut for [`http_request`](@ref) function, work similar to `http_request("POS
 ## Examples
 
 ```julia-repl
-julia> headers = Pair{String,String}[
-           "User-Agent" => "EasyCurl.jl",
-           "Content-Type" => "application/json"
-       ]
-
-julia> response = http_post("http://httpbin.org/post", headers = headers,
-    query = "qry=你好嗎", body = "{\\"data\\":\\"hi\\"}")
-
-julia> http_status(response)
-200
+julia> response = http_post(
+           "http://httpbin.org/post";
+           headers = Pair{String,String}[
+               "Content-Type" => "application/json",
+               "User-Agent" => "EasyCurl.jl",
+           ],
+           query = "qry=你好嗎",
+           body = "{\"data\":\"hi\"}",
+       );
 
 julia> http_body(response) |> String |> print
 {
   "args": {
     "qry": "\u4f60\u597d\u55ce"
-  },
-  "data": "{\\"data\\":\\"hi\\"}",
-  "files": {},
-  "form": {},
+  }, 
+  "data": "{\"data\":\"hi\"}", 
+  "files": {}, 
+  "form": {}, 
   "headers": {
-    "Accept": "*/*",
-    "Accept-Encoding": "gzip",
-    "Content-Length": "13",
-    "Content-Type": "application/json",
-    "Host": "httpbin.org",
-    "User-Agent": "EasyCurl.jl",
-    "X-Amzn-Trace-Id": "Root=1-6589e32c-7f09b85d56e11aea59cde1d6"
-  },
+    "Accept": "*/*", 
+    "Accept-Encoding": "gzip", 
+    "Content-Length": "13", 
+    "Content-Type": "application/json", 
+    "Host": "httpbin.org", 
+    "User-Agent": "EasyCurl.jl", 
+    "X-Amzn-Trace-Id": "Root=1-66e0e208-4850928003a928fd230bfd59"
+  }, 
   "json": {
     "data": "hi"
-  },
-  "origin": "100.250.50.140",
+  }, 
+  "origin": "100.250.50.140", 
   "url": "http://httpbin.org/post?qry=\u4f60\u597d\u55ce"
 }
 ```
@@ -619,38 +557,37 @@ Shortcut for [`http_request`](@ref) function, work similar to `http_request("PUT
 ## Examples
 
 ```julia-repl
-julia> headers = Pair{String,String}[
-           "User-Agent" => "EasyCurl.jl",
-           "Content-Type" => "application/json"
-       ]
-
-julia> response = http_put("http://httpbin.org/put", headers = headers,
-    query = "qry=你好嗎", body = "{\\"data\\":\\"hi\\"}")
-
-julia> http_status(response)
-200
+julia> response = http_put(
+           "http://httpbin.org/put";
+           headers = Pair{String,String}[
+               "Content-Type" => "application/json",
+               "User-Agent" => "EasyCurl.jl",
+           ],
+           query = "qry=你好嗎",
+           body = "{\"data\":\"hi\"}",
+       );
 
 julia> http_body(response) |> String |> print
 {
   "args": {
     "qry": "\u4f60\u597d\u55ce"
-  },
-  "data": "{\\"data\\":\\"hi\\"}",
-  "files": {},
-  "form": {},
+  }, 
+  "data": "{\"data\":\"hi\"}", 
+  "files": {}, 
+  "form": {}, 
   "headers": {
-    "Accept": "*/*",
-    "Accept-Encoding": "gzip",
-    "Content-Length": "13",
-    "Content-Type": "application/json",
-    "Host": "httpbin.org",
-    "User-Agent": "EasyCurl.jl",
-    "X-Amzn-Trace-Id": "Root=1-6589e3b0-58cdde84399ad8be30eb4e46"
-  },
+    "Accept": "*/*", 
+    "Accept-Encoding": "gzip", 
+    "Content-Length": "13", 
+    "Content-Type": "application/json", 
+    "Host": "httpbin.org", 
+    "User-Agent": "EasyCurl.jl", 
+    "X-Amzn-Trace-Id": "Root=1-66e0e239-34f8cfdc41164300719ce1f1"
+  }, 
   "json": {
     "data": "hi"
-  },
-  "origin": "100.250.50.140",
+  }, 
+  "origin": "100.250.50.140", 
   "url": "http://httpbin.org/put?qry=\u4f60\u597d\u55ce"
 }
 ```
@@ -665,38 +602,37 @@ Shortcut for [`http_request`](@ref) function, work similar to `http_request("PAT
 ## Examples
 
 ```julia-repl
-julia> headers = Pair{String,String}[
-           "User-Agent" => "EasyCurl.jl",
-           "Content-Type" => "application/json"
-       ]
-
-julia> response = http_patch("http://httpbin.org/patch", headers = headers,
-    query = "qry=你好嗎", body = "{\\"data\\":\\"hi\\"}")
-
-julia> http_status(response)
-200
+julia> response = http_patch(
+           "http://httpbin.org/patch";
+           headers = Pair{String,String}[
+               "Content-Type" => "application/json",
+               "User-Agent" => "EasyCurl.jl",
+           ],
+           query = "qry=你好嗎",
+           body = "{\"data\":\"hi\"}",
+       );
 
 julia> http_body(response) |> String |> print
 {
   "args": {
     "qry": "\u4f60\u597d\u55ce"
-  },
-  "data": "{\\"data\\":\\"hi\\"}",
-  "files": {},
-  "form": {},
+  }, 
+  "data": "{\"data\":\"hi\"}", 
+  "files": {}, 
+  "form": {}, 
   "headers": {
-    "Accept": "*/*",
-    "Accept-Encoding": "gzip",
-    "Content-Length": "13",
-    "Content-Type": "application/json",
-    "Host": "httpbin.org",
-    "User-Agent": "EasyCurl.jl",
-    "X-Amzn-Trace-Id": "Root=1-6589e410-33f8cb5a31db9fba6c0a746f"
-  },
+    "Accept": "*/*", 
+    "Accept-Encoding": "gzip", 
+    "Content-Length": "13", 
+    "Content-Type": "application/json", 
+    "Host": "httpbin.org", 
+    "User-Agent": "EasyCurl.jl", 
+    "X-Amzn-Trace-Id": "Root=1-66e0e266-5bd4762c619fbd642710bf3d"
+  }, 
   "json": {
     "data": "hi"
-  },
-  "origin": "100.250.50.140",
+  }, 
+  "origin": "100.250.50.140", 
   "url": "http://httpbin.org/patch?qry=\u4f60\u597d\u55ce"
 }
 ```
@@ -711,38 +647,37 @@ Shortcut for [`http_request`](@ref) function, work similar to `http_request("DEL
 ## Examples
 
 ```julia-repl
-julia> headers = Pair{String,String}[
-           "User-Agent" => "EasyCurl.jl",
-           "Content-Type" => "application/json"
-       ]
-
-julia> response = http_delete("http://httpbin.org/delete", headers = headers,
-    query = "qry=你好嗎", body = "{\\"data\\":\\"hi\\"}")
-
-julia> http_status(response)
-200
+julia> response = http_delete(
+           "http://httpbin.org/delete";
+           headers = Pair{String,String}[
+               "Content-Type" => "application/json",
+               "User-Agent" => "EasyCurl.jl",
+           ],
+           query = "qry=你好嗎",
+           body = "{\"data\":\"hi\"}",
+       );
 
 julia> http_body(response) |> String |> print
 {
   "args": {
     "qry": "\u4f60\u597d\u55ce"
-  },
-  "data": "{\\"data\\":\\"hi\\"}",
-  "files": {},
-  "form": {},
+  }, 
+  "data": "{\"data\":\"hi\"}", 
+  "files": {}, 
+  "form": {}, 
   "headers": {
-    "Accept": "*/*",
-    "Accept-Encoding": "gzip",
-    "Content-Length": "13",
-    "Content-Type": "application/json",
-    "Host": "httpbin.org",
-    "User-Agent": "EasyCurl.jl",
-    "X-Amzn-Trace-Id": "Root=1-6589e5f7-1c1ff2407f567ff17786576d"
-  },
+    "Accept": "*/*", 
+    "Accept-Encoding": "gzip", 
+    "Content-Length": "13", 
+    "Content-Type": "application/json", 
+    "Host": "httpbin.org", 
+    "User-Agent": "EasyCurl.jl", 
+    "X-Amzn-Trace-Id": "Root=1-66e0e292-34acbab950035ea1763c3aca"
+  }, 
   "json": {
     "data": "hi"
-  },
-  "origin": "100.250.50.140",
+  }, 
+  "origin": "100.250.50.140", 
   "url": "http://httpbin.org/delete?qry=\u4f60\u597d\u55ce"
 }
 ```

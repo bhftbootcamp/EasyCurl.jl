@@ -1,30 +1,13 @@
 #__ Utils
 
-"""
-    curl_joinurl(basepart::AbstractString, parts::AbstractString...)::String
-
-Construct a URL by concatenating a base part with one or more path segments. This function
-ensures that each segment is separated by a single forward slash (`/`), regardless of whether
-the `basepart` or `parts` already contain slashes at their boundaries.
-
-## Examples
-
-```julia-repl
-julia> curl_joinurl("http://example.com", "path")
-"http://example.com/path"
-
-julia> curl_joinurl("http://example.com/", "/path/to/resource")
-"http://example.com/path/to/resource"
-```
-"""
-function curl_joinurl(basepart::AbstractString, parts::AbstractString...)::String
+function curl_joinurl(basepart::AbstractString, parts::AbstractString...)
     basepart = strip(basepart, '/')
     cleaned_parts = [strip(part, '/') for part in parts if !isempty(part)]
     return join([basepart, cleaned_parts...], "/")
 end
 
 function urlencode(c::CurlClient, s::AbstractString)
-    b_arr = curl_easy_escape(c, s, sizeof(s))
+    b_arr = curl_easy_escape(c, s, 0)
     try
         return unsafe_string(b_arr)
     finally
@@ -41,7 +24,7 @@ function urldecode(c::CurlClient, s::AbstractString)
     end
 end
 
-function to_query(c::CurlClient, params::AbstractDict{String,<:Any})::String
+function to_query(c::CurlClient, params::AbstractDict{String,<:Any})
     pairs = String[]
     for (k, v) in params
         if v !== ""
@@ -62,7 +45,7 @@ function build_http_url(c::CurlClient, url::AbstractString, query)
 end
 
 function build_imap_url(
-    url::String,
+    url::AbstractString,
     mailbox::Union{String,Nothing},
     path::Union{String,Nothing},
 )
@@ -78,7 +61,7 @@ function split_header(x::AbstractString)
     return lowercase(k) => v
 end
 
-function with_retry(f, retry::Int, retry_delay::Real)
+function with_retry(f::Function, retry::Int, retry_delay::Real)
     while true
         try
             return f()
