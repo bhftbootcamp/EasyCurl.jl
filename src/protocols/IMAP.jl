@@ -140,9 +140,10 @@ Send a `url` IMAP request using `username` and `password`, then return a [`IMAPR
 
 ```julia-repl
 julia> response = imap_request(
-           "imaps://imap.gmail.com:993/INBOX",
+           "imaps://imap.gmail.com:993",
            "your_imap_username",
            "your_imap_password",
+           mailbox = "INBOX",
            command = "SEARCH SINCE 09-Sep-2024",
        );
 
