@@ -32,11 +32,8 @@ mutable struct CurlClient
 end
 
 function curl_easy_cleanup(c::CurlClient)
-    r = LibCURL.curl_easy_cleanup(c.curl_handle)
-    r == C_NULL && throw(CurlError(r))
-    return r
+    LibCURL.curl_easy_cleanup(c.curl_handle)
 end
-
 """
     close(client::CurlClient)
 
