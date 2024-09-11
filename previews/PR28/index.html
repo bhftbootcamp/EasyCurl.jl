@@ -39,31 +39,31 @@ julia&gt; http_body(response) |&gt; String |&gt; print
 {
   &quot;args&quot;: {
     &quot;qry&quot;: &quot;\u4f60\u597d\u55ce&quot;
-  }, 
-  &quot;data&quot;: &quot;{\&quot;data\&quot;:\&quot;hi\&quot;}&quot;, 
-  &quot;files&quot;: {}, 
-  &quot;form&quot;: {}, 
+  },
+  &quot;data&quot;: &quot;{\&quot;data\&quot;:\&quot;hi\&quot;}&quot;,
+  &quot;files&quot;: {},
+  &quot;form&quot;: {},
   &quot;headers&quot;: {
-    &quot;Accept&quot;: &quot;*/*&quot;, 
-    &quot;Accept-Encoding&quot;: &quot;gzip&quot;, 
-    &quot;Content-Length&quot;: &quot;13&quot;, 
-    &quot;Content-Type&quot;: &quot;application/json&quot;, 
-    &quot;Host&quot;: &quot;httpbin.org&quot;, 
-    &quot;User-Agent&quot;: &quot;EasyCurl.jl&quot;, 
+    &quot;Accept&quot;: &quot;*/*&quot;,
+    &quot;Accept-Encoding&quot;: &quot;gzip&quot;,
+    &quot;Content-Length&quot;: &quot;13&quot;,
+    &quot;Content-Type&quot;: &quot;application/json&quot;,
+    &quot;Host&quot;: &quot;httpbin.org&quot;,
+    &quot;User-Agent&quot;: &quot;EasyCurl.jl&quot;,
     &quot;X-Amzn-Trace-Id&quot;: &quot;Root=1-66e0dce3-7dbea4a9357524fb19628e26&quot;
-  }, 
+  },
   &quot;json&quot;: {
     &quot;data&quot;: &quot;hi&quot;
-  }, 
-  &quot;origin&quot;: &quot;100.250.50.140&quot;, 
+  },
+  &quot;origin&quot;: &quot;100.250.50.140&quot;,
   &quot;url&quot;: &quot;http://httpbin.org/post?qry=\u4f60\u597d\u55ce&quot;
 }</code></pre><p>This example shows how to use <code>CurlClient</code> for making HTTP requests by reusing the same client instance, which can help in speeding up the requests when making multiple calls to the same server:</p><pre><code class="language-julia hljs">using EasyCurl
 
-curl_client = CurlClient()
+http_client = CurlClient()
 
 # Perform a GET request
 response = http_request(
-    curl_client,
+    http_client,
     &quot;GET&quot;,
     &quot;http://httpbin.org/get&quot;,
     headers = Pair{String,String}[
@@ -74,25 +74,26 @@ response = http_request(
 
 julia&gt; http_body(response) |&gt; String |&gt; print
 {
-  &quot;args&quot;: {}, 
+  &quot;args&quot;: {},
   &quot;headers&quot;: {
-    &quot;Accept&quot;: &quot;*/*&quot;, 
-    &quot;Accept-Encoding&quot;: &quot;gzip&quot;, 
-    &quot;Content-Type&quot;: &quot;application/json&quot;, 
-    &quot;Host&quot;: &quot;httpbin.org&quot;, 
-    &quot;User-Agent&quot;: &quot;EasyCurl.jl&quot;, 
+    &quot;Accept&quot;: &quot;*/*&quot;,
+    &quot;Accept-Encoding&quot;: &quot;gzip&quot;,
+    &quot;Content-Type&quot;: &quot;application/json&quot;,
+    &quot;Host&quot;: &quot;httpbin.org&quot;,
+    &quot;User-Agent&quot;: &quot;EasyCurl.jl&quot;,
     &quot;X-Amzn-Trace-Id&quot;: &quot;Root=1-66e0de99-735b60c138a5445c7f7b5c7e&quot;
-  }, 
-  &quot;origin&quot;: &quot;100.250.50.140&quot;, 
+  },
+  &quot;origin&quot;: &quot;100.250.50.140&quot;,
   &quot;url&quot;: &quot;http://httpbin.org/get&quot;
 }
 
-close(curl_client)</code></pre><p>In addition to HTTP, you can also make IMAP requests to retrieve email from a server:</p><pre><code class="language-julia hljs">using EasyCurl
+close(http_client)</code></pre><p>In addition to HTTP, you can also make IMAP requests to retrieve email from a server:</p><pre><code class="language-julia hljs">using EasyCurl
 
 response = imap_request(
-    &quot;imaps://imap.gmail.com:993/INBOX&quot;,
+    &quot;imaps://imap.gmail.com:993&quot;,
     &quot;username@example.com&quot;,
     &quot;password&quot;,
+    mailbox = &quot;INBOX&quot;,
     command = &quot;SEARCH SINCE 09-Sep-2024&quot;,
 )
 
@@ -107,4 +108,4 @@ ENV[&quot;all_proxy&quot;] = &quot;socks5://your_proxy_username:your_proxy_passw
 
 # domains that should bypass the proxy
 ENV[&quot;no_proxy&quot;] = &quot;localhost,.local,.mywork&quot;</code></pre><p>When executing the <code>http_request</code> function with the <code>proxy</code> parameter, it will ignore the environment variable settings for proxies</p><pre><code class="language-julia hljs">julia&gt; http_request(&quot;GET&quot;, &quot;http://httpbin.org/get&quot;,
-    proxy = &quot;socks5://your_proxy_username:your_proxy_password@your_proxy_host:your_proxy_port&quot;)</code></pre></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="pages/curl/">Curl Interface »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.7.0 on <span class="colophon-date" title="Wednesday 11 September 2024 19:08">Wednesday 11 September 2024</span>. Using Julia version 1.10.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+    proxy = &quot;socks5://your_proxy_username:your_proxy_password@your_proxy_host:your_proxy_port&quot;)</code></pre></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="pages/curl/">Curl Interface »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.7.0 on <span class="colophon-date" title="Wednesday 11 September 2024 19:10">Wednesday 11 September 2024</span>. Using Julia version 1.10.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
