@@ -4,7 +4,7 @@ export CurlClient,
     CurlError
 
 export curl_open
-    
+
 using LibCURL
 
 abstract type CurlOptions end
@@ -32,7 +32,9 @@ mutable struct CurlClient
 end
 
 function curl_easy_cleanup(c::CurlClient)
-    LibCURL.curl_easy_cleanup(c.curl_handle)
+    r = LibCURL.curl_easy_cleanup(c.curl_handle)
+    r == C_NULL && throw(CurlError(r))
+    return r
 end
 
 """
