@@ -15,9 +15,17 @@ makedocs(;
     ),
     pages = [
         "Home" => "index.md",
-        "API Reference" => "pages/api_reference.md",
-        "Constants" => "pages/constants.md",
-        "For Developers" => "pages/error_handling.md",
+        "API Reference" => [
+            "pages/curl.md",
+            "Protocols" => [
+                "pages/protocols/http.md",
+                "pages/protocols/imap.md",
+            ],
+            "Constants" => "pages/constants.md",
+        ],
+        "For Developers" => [
+            "pages/error_handling.md"
+        ],
     ],
     warnonly = [:doctest, :missing_docs],
 )

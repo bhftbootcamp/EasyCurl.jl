@@ -1,24 +1,13 @@
 #__ integration
 
-import EasyCurl: urlencode_query_params
-
-const headers = [
-    "User-Agent" => "EasyCurl.jl",
-    "Content-Type" => "application/json"
-]
-
 const query = Dict{String,Any}(
     "echo" => "你好嗎"
-)
-
-const payload = urlencode_query_params(
-    Dict{String,Any}("echo" => "hello")
 )
 
 @testset "HTTP Requests" begin
     # Test for nonexistent host error
     @testset "Nonexistent host error" begin
-        @test_throws "CurlError{6}(Couldn't resolve host name)" curl_get(
+        @test_throws "CurlError: Couldn't resolve host name" http_get(
             "https://bar-foo.foo/get",
             read_timeout = 30,
             verbose = true,
@@ -27,81 +16,91 @@ const payload = urlencode_query_params(
 
     # Test for GET request
     @testset "GET request" begin
-        response = curl_get("httpbin.org/get", query = query, read_timeout = 30)
-        @test curl_status(response) == 200
-        body = parse_json(curl_body(response))
+        response = http_get("httpbin.org/get", query = query, read_timeout = 30)
+        @test http_status(response) == 200
+        body = parse_json(http_body(response))
         @test body["args"] == query
         @test body["url"] == "http://httpbin.org/get?echo=你好嗎"
     end
 
     # Test for HEAD request
     @testset "HEAD request" begin
-        response = curl_head(
+        response = http_head(
             "httpbin.org/get",
-            headers = headers,
+            headers = headers = [
+                "Content-Type" => "application/json"
+            ],
             read_timeout = 30,
             verbose = true,
         )
-        @test curl_status(response) == 200
-        @test isempty(curl_body(response))
+        @test http_status(response) == 200
+        @test isempty(http_body(response))
     end
 
     # Test for POST request
     @testset "POST request" begin
-        response = curl_post(
+        response = http_post(
             "httpbin.org/post",
-            headers = headers,
-            body = payload,
+            headers = headers = [
+                "Content-Type" => "application/json"
+            ],
+            body = "echo=hello",
             read_timeout = 30,
             verbose = true,
         )
-        @test curl_status(response) == 200
-        body = parse_json(curl_body(response))
-        @test body["data"] == payload
+        @test http_status(response) == 200
+        body = parse_json(http_body(response))
+        @test body["data"] == "echo=hello"
     end
 
     # Test for PUT request
     @testset "PUT request" begin
-        response = curl_put(
+        response = http_put(
             "httpbin.org/put",
-            headers = headers,
-            body = payload,
+            headers = headers = [
+                "Content-Type" => "application/json"
+            ],
+            body = "echo=hello",
             read_timeout = 30,
             verbose = true,
         )
-        @test curl_status(response) == 200
-        body = parse_json(curl_body(response))
-        @test body["data"] == payload
+        @test http_status(response) == 200
+        body = parse_json(http_body(response))
+        @test body["data"] == "echo=hello"
     end
 
     # Test for PATCH request
     @testset "PATCH request" begin
-        response = curl_patch(
+        response = http_patch(
             "httpbin.org/patch",
-            headers = headers,
+            headers = headers = [
+                "Content-Type" => "application/json"
+            ],
             query = query,
-            body = payload,
+            body = "echo=hello",
             read_timeout = 30,
             verbose = true,
         )
-        @test curl_status(response) == 200
-        body = parse_json(curl_body(response))
-        @test body["data"] == payload
+        @test http_status(response) == 200
+        body = parse_json(http_body(response))
+        @test body["data"] == "echo=hello"
     end
 
     # Test for DELETE request
     @testset "DELETE request" begin
-        response = curl_delete(
+        response = http_delete(
             "httpbin.org/delete",
-            headers = headers,
+            headers = headers = [
+                "Content-Type" => "application/json"
+            ],
             read_timeout = 30,
             verbose = true,
         )
-        @test curl_status(response) == 200
+        @test http_status(response) == 200
     end
 end
 
-@testset verbose = true "Optional interface" begin
+@testset "Optional interface" begin
     server_setup = quote
         using Sockets
 
@@ -133,14 +132,14 @@ end
     server_procs = open(`$(Base.julia_cmd()) -e $server_setup`, "w+")
     port_str = readline(server_procs)
 
-    @test_throws "CurlError{45}(Failed binding local connection end)" curl_get(
+    @test_throws "CurlError: Failed binding local connection end" http_get(
         "http://127.0.0.1:$(port_str)",
         interface = "10.10.10.10",
         read_timeout = 30,
         verbose = true,
     )
 
-    response = curl_get(
+    response = http_get(
         "http://127.0.0.1:$(port_str)",
         headers = ["User-Agent" => "EasyCurl.jl"],
         interface = "0.0.0.0",
@@ -149,10 +148,10 @@ end
         verbose = true,
     )
 
-    @test curl_status(response)                     == 200
-    @test curl_body(response)                 == b"<h1>Hello</h1>\n"
-    @test curl_header(response, "User-Agent") == "EasyCurl.jl"
-    @test curl_header(response, "user-agent") == "EasyCurl.jl"
+    @test http_status(response)               == 200
+    @test http_body(response)                 == b"<h1>Hello</h1>\n"
+    @test http_header(response, "User-Agent") == "EasyCurl.jl"
+    @test http_header(response, "user-agent") == "EasyCurl.jl"
 
     kill(server_procs, Base.SIGKILL)
 end
