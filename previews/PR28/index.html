@@ -35,7 +35,7 @@ response = http_request(
     retry = 10,
 )
 
-julia&gt; http_body(response) |&gt; String |&gt; print
+julia&gt; curl_body(response) |&gt; String |&gt; print
 {
   &quot;args&quot;: {
     &quot;qry&quot;: &quot;\u4f60\u597d\u55ce&quot;
@@ -72,7 +72,7 @@ response = http_request(
     ],
 )
 
-julia&gt; http_body(response) |&gt; String |&gt; print
+julia&gt; curl_body(response) |&gt; String |&gt; print
 {
   &quot;args&quot;: {},
   &quot;headers&quot;: {
@@ -97,7 +97,7 @@ response = imap_request(
     command = &quot;SEARCH SINCE 09-Sep-2024&quot;,
 )
 
-julia&gt; imap_body(response) |&gt; String |&gt; print
+julia&gt; curl_body(response) |&gt; String |&gt; print
 * SEARCH 610 611 612 613 614 615 616 617 618 619 620 621 622 623 624 625 626 627 628 629</code></pre><h3 id="Using-a-proxy-with-EasyCurl"><a class="docs-heading-anchor" href="#Using-a-proxy-with-EasyCurl">Using a proxy with EasyCurl</a><a id="Using-a-proxy-with-EasyCurl-1"></a><a class="docs-heading-anchor-permalink" href="#Using-a-proxy-with-EasyCurl" title="Permalink"></a></h3><p>To use a proxy for all your HTTP and HTTPS requests in <code>EasyCurl</code>, you can set the following environment variables:</p><ul><li><code>all_proxy</code>: Proxy for all protocols</li><li><code>http_proxy</code>: Proxy for HTTP requests</li><li><code>https_proxy</code>: Proxy for HTTPS requests</li><li><code>no_proxy</code>: Domains to exclude from proxying</li></ul><pre><code class="language-julia hljs"># &#39;your_proxy_username&#39; your proxy account&#39;s username
 # &#39;your_proxy_password&#39; your proxy account&#39;s password
 # &#39;your_proxy_host&#39; the hostname or IP address of your proxy server
@@ -108,4 +108,4 @@ ENV[&quot;all_proxy&quot;] = &quot;socks5://your_proxy_username:your_proxy_passw
 
 # domains that should bypass the proxy
 ENV[&quot;no_proxy&quot;] = &quot;localhost,.local,.mywork&quot;</code></pre><p>When executing the <code>http_request</code> function with the <code>proxy</code> parameter, it will ignore the environment variable settings for proxies</p><pre><code class="language-julia hljs">julia&gt; http_request(&quot;GET&quot;, &quot;http://httpbin.org/get&quot;,
-    proxy = &quot;socks5://your_proxy_username:your_proxy_password@your_proxy_host:your_proxy_port&quot;)</code></pre></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="pages/curl/">Curl Interface »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.7.0 on <span class="colophon-date" title="Wednesday 11 September 2024 19:29">Wednesday 11 September 2024</span>. Using Julia version 1.10.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+    proxy = &quot;socks5://your_proxy_username:your_proxy_password@your_proxy_host:your_proxy_port&quot;)</code></pre></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="pages/curl/">Curl Interface »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.7.0 on <span class="colophon-date" title="Thursday 12 September 2024 08:17">Thursday 12 September 2024</span>. Using Julia version 1.10.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
