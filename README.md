@@ -1,5 +1,3 @@
-![EasyCurl.jl Logo](docs/src/assets/readme_logo.svg)
-
 # EasyCurl.jl
 
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://bhftbootcamp.github.io/EasyCurl.jl/stable)
@@ -8,7 +6,24 @@
 [![Coverage](https://codecov.io/gh/bhftbootcamp/EasyCurl.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/bhftbootcamp/EasyCurl.jl)
 [![Registry](https://img.shields.io/badge/registry-General-4063d8)](https://github.com/JuliaRegistries/General)
 
-EasyCurl is a lightweight Julia package that provides a user-friendly wrapper for the libcurl C library, for making HTTP requests. It is useful for sending HTTP requests, especially when dealing with RESTful APIs.
+EasyCurl is a lightweight Julia package that provides a user-friendly wrapper for the libcurl C library, for making requests.
+
+<html lang="en">
+  <body>
+      <table>
+          <tr>
+              <th>Protocols:</th>
+              <th><div align="center">HTTP/HTTPS</div></th>
+              <th><div align="center">IMAP/IMAPS</div></th>
+          </tr>
+          <tr>
+              <th></th>
+              <th><div align="center">✓</div></th>
+              <th><div align="center">✓</div></th>
+          </tr>
+      </table>
+  </body>
+</html>
 
 ## Installation
 
@@ -27,73 +42,48 @@ In the example, a POST request is sent to http://httpbin.org/post using the `en0
 ```julia
 using EasyCurl
 
-headers = Pair{String,String}[
-    "User-Agent" => "EasyCurl.jl",
-    "Content-Type" => "application/json"
-]
-
 # 'interface' argument specifies the network interface to use for the request
 # 'read_timeout' and 'connect_timeout' define how long to wait for a response or connection
 # 'retry' argument specifies how many times to retry the request if it fails initially
 
-response = curl_request("POST", "http://httpbin.org/post", headers = headers, query = "qry=你好嗎",
-    body = "{\"data\":\"hi\"}", interface = "en0", read_timeout = 5, connect_timeout = 10, retry = 10)
+response = http_request(
+    "POST",
+    "http://httpbin.org/post",
+    headers = Pair{String,String}[
+        "Content-Type" => "application/json",
+        "User-Agent" => "EasyCurl.jl",
+    ],
+    query = "qry=你好嗎",
+    body = "{\"data\":\"hi\"}",
+    interface = "en0",
+    read_timeout = 5,
+    connect_timeout = 10,
+    retry = 10,
+)
 
-julia> curl_status(response)
-200
-
-julia> curl_body(response) |> String |> print
+julia> http_body(response) |> String |> print
 {
+  "args": {
+    "qry": "\u4f60\u597d\u55ce"
+  },
+  "data": "{\"data\":\"hi\"}",
+  "files": {},
+  "form": {},
   "headers": {
-    "X-Amzn-Trace-Id": "Root=1-6588a009-19f3dc0321bee38106226bb3",
-    "Content-Length": "13",
-    "Host": "httpbin.org",
     "Accept": "*/*",
-    "Content-Type": "application/json",
     "Accept-Encoding": "gzip",
-    "User-Agent": "EasyCurl.jl"
+    "Content-Length": "13",
+    "Content-Type": "application/json",
+    "Host": "httpbin.org",
+    "User-Agent": "EasyCurl.jl",
+    "X-Amzn-Trace-Id": "Root=1-66e0dce3-7dbea4a9357524fb19628e26"
   },
   "json": {
     "data": "hi"
   },
-  "files": {},
-  "args": {
-    "qry": "你好嗎"
-  },
-  "data": "{\"data\":\"hi\"}",
-  "url": "http://httpbin.org/post?qry=你好嗎",
-  "form": {},
-  "origin": "100.250.50.140"
+  "origin": "100.250.50.140",
+  "url": "http://httpbin.org/post?qry=\u4f60\u597d\u55ce"
 }
-```
-
-For HEAD, GET, POST, PUT, and PATCH requests, a similar structure is used to invoke the `curl_request` function with the appropriate HTTP method specified
-
-```julia
-using EasyCurl
-
-headers = Pair{String,String}[
-    "User-Agent"   => "EasyCurl.jl",
-    "Content-Type" => "application/json"
-]
-
-# HEAD
-julia> curl_head("http://httpbin.org/get", interface = "0.0.0.0")
-
-# GET
-julia> curl_get("http://httpbin.org/get", query = Dict{String,String}("qry" => "你好嗎"))
-
-# DELETE
-julia> curl_delete("http://httpbin.org/delete", query = Dict{String,String}("qry" => "你好嗎"))
-
-# POST
-julia> curl_post("http://httpbin.org/post", headers = headers, query = "qry=你好嗎", body = "{\"data\":\"hi\"}")
-
-# PUT
-julia> curl_put("http://httpbin.org/put", headers = headers, query = "qry=你好嗎", body = "{\"data\":\"hi\"}")
-
-# PATCH
-julia> curl_patch("http://httpbin.org/patch", headers = headers, query = "qry=你好嗎", body = "{\"data\":\"hi\"}")
 ```
 
 This example shows how to use `CurlClient` for making HTTP requests by reusing the same client instance, which can help in speeding up the requests when making multiple calls to the same server:
@@ -101,70 +91,52 @@ This example shows how to use `CurlClient` for making HTTP requests by reusing t
 ```julia
 using EasyCurl
 
-headers = Pair{String,String}[
-    "User-Agent" => "EasyCurl.jl",
-    "Content-Type" => "application/json"
-]
-
-curl_client = CurlClient()
+http_client = CurlClient()
 
 # Perform a GET request
-response = curl_request(
-    curl_client,
+response = http_request(
+    http_client,
     "GET",
     "http://httpbin.org/get",
-    headers = headers
+    headers = Pair{String,String}[
+        "Content-Type" => "application/json",
+        "User-Agent" => "EasyCurl.jl",
+    ],
 )
 
-julia> curl_status(response)
-200
-
-julia> curl_body(response) |> String |> print
+julia> http_body(response) |> String |> print
 {
+  "args": {},
   "headers": {
-    "X-Amzn-Trace-Id": "Root=1-6588a009-19f3dc0321bee38106226bb3",
-    "Content-Length": "13",
-    "Host": "httpbin.org",
     "Accept": "*/*",
-    "Content-Type": "application/json",
     "Accept-Encoding": "gzip",
-    "User-Agent": "EasyCurl.jl"
+    "Content-Type": "application/json",
+    "Host": "httpbin.org",
+    "User-Agent": "EasyCurl.jl",
+    "X-Amzn-Trace-Id": "Root=1-66e0de99-735b60c138a5445c7f7b5c7e"
   },
-  ...
+  "origin": "100.250.50.140",
+  "url": "http://httpbin.org/get"
 }
 
-close(curl_client)
+close(http_client)
 ```
 
-Example of error handling with `EasyCurl`:
+In addition to HTTP, you can also make IMAP requests to retrieve email from a server:
 
 ```julia
 using EasyCurl
 
-try
-    curl_request("GET", "http://httpbin.org/status/400", read_timeout = 30)
-    # If the request is successful, you can process the response here
-    # ...
-catch e
-    if isa(e, CurlError{EasyCurl.CURLE_COULDNT_CONNECT})
-        # Handle the case where the connection to the server could not be made
-    elseif isa(e, CurlError{EasyCurl.CURLE_OPERATION_TIMEDOUT})
-        # Handle the case where the operation timed out
-    elseif isa(e, CurlStatusError{400})
-        # Handle a 400 Bad Request error specifically
-    end
-    rethrow(e)
-end
-```
+response = imap_request(
+    "imaps://imap.gmail.com:993",
+    "username@example.com",
+    "password",
+    mailbox = "INBOX",
+    command = "SEARCH SINCE 09-Sep-2024",
+)
 
-Using `curl_joinurl`
-
-```julia
-julia> curl_joinurl("http://example.com", "path")
-"http://example.com/path"
-
-julia> curl_joinurl("http://example.com/", "/path/to/resource")
-"http://example.com/path/to/resource"
+julia> imap_body(response) |> String |> print
+* SEARCH 610 611 612 613 614 615 616 617 618 619 620 621 622 623 624 625 626 627 628 629
 ```
 
 ### Using a proxy with EasyCurl
@@ -189,10 +161,10 @@ ENV["all_proxy"] = "socks5://your_proxy_username:your_proxy_password@your_proxy_
 ENV["no_proxy"] = "localhost,.local,.mywork"
 ```
 
-When executing the `curl_request` function with the `proxy` parameter, it will ignore the environment variable settings for proxies
+When executing the `http_request` function with the `proxy` parameter, it will ignore the environment variable settings for proxies
 
 ```julia
-julia> curl_request("GET", "http://httpbin.org/get",
+julia> http_request("GET", "http://httpbin.org/get",
     proxy = "socks5://your_proxy_username:your_proxy_password@your_proxy_host:your_proxy_port")
 ```
 
