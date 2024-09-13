@@ -7,7 +7,7 @@ const query = Dict{String,Any}(
 @testset "HTTP Requests" begin
     # Test for nonexistent host error
     @testset "Nonexistent host error" begin
-        @test_throws "CurlError: Couldn't resolve host name" http_get(
+        @test_throws CurlError{6} http_get(
             "https://bar-foo.foo/get",
             read_timeout = 30,
             verbose = true,
@@ -132,7 +132,7 @@ end
     server_procs = open(`$(Base.julia_cmd()) -e $server_setup`, "w+")
     port_str = readline(server_procs)
 
-    @test_throws "CurlError: Failed binding local connection end" http_get(
+    @test_throws CurlError{45} http_get(
         "http://127.0.0.1:$(port_str)",
         interface = "10.10.10.10",
         read_timeout = 30,
