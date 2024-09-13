@@ -1,6 +1,6 @@
 name = "EasyCurl"
 uuid = "5dc68c43-2cae-45c1-9c9f-30d6e2b9e002"
-version = "3.0.0"
+version = "3.1.0"
 
 [deps]
 LibCURL = "b27032c2-a3e7-50c8-80cd-2d36dbcbfd21"

@@ -152,7 +152,7 @@ This function is case-insensitive with regard to the header field name.
 ## Examples
 
 ```julia-repl
-julia> response = http_request("GET", "http://httpbin.org/get")
+julia> response = http_request("GET", "http://httpbin.org/get");
 
 julia> http_header(response, "Content-Type")
 "application/json"
@@ -239,7 +239,7 @@ struct HTTPOptions <: CurlOptions
 end
 
 """
-    HTTPStatusError <: Exception
+    HTTPStatusError{code} <: Exception
 
 Type wrapping HTTP error codes. Returned from [`http_request`](@ref) when an HTTP error occurs.
 
@@ -253,21 +253,21 @@ Type wrapping HTTP error codes. Returned from [`http_request`](@ref) when an HTT
 
 ```julia-repl
 julia> http_request("GET", "http://httpbin.org/status/400")
-ERROR: HTTPStatusError: BAD_REQUEST
+ERROR: HTTPStatusError{400}: BAD_REQUEST
 [...]
 
 julia> http_request("GET", "http://httpbin.org/status/404")
-ERROR: HTTPStatusError: NOT_FOUND
+ERROR: HTTPStatusError{404}: NOT_FOUND
 [...]
 ```
 """
-struct HTTPStatusError <: Exception
+struct HTTPStatusError{code} <: Exception
     code::Int64
     message::String
     response::HTTPResponse
 
     function HTTPStatusError(x::HTTPResponse)
-        return new(
+        return new{Int(x.status)}(
             x.status,
             Base.get(HTTP_STATUS_CODES, x.status, HTTP_STATUS_CODES[500]),
             x,
@@ -276,7 +276,7 @@ struct HTTPStatusError <: Exception
 end
 
 function Base.showerror(io::IO, e::HTTPStatusError)
-    print(io, "HTTPStatusError: ", e.message)
+    print(io, "HTTPStatusError{", e.code, "}: ", e.message)
 end
 
 mutable struct HTTPRequest <: CurlRequest
@@ -387,7 +387,7 @@ Send a `url` HTTP request using as `method` one of `"GET"`, `"POST"`, etc. and r
 ```julia-repl
 julia> response = http_request(
            "POST",
-           "http://httpbin.org/post",
+           "http://httpbin.org/post";
            headers = Pair{String,String}[
                "Content-Type" => "application/json",
                "User-Agent" => "EasyCurl.jl",

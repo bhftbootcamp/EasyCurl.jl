@@ -44,7 +44,7 @@ using EasyCurl
 
 response = http_request(
     "POST",
-    "http://httpbin.org/post",
+    "http://httpbin.org/post";
     headers = Pair{String,String}[
         "Content-Type" => "application/json",
         "User-Agent" => "EasyCurl.jl",
@@ -93,7 +93,7 @@ http_client = CurlClient()
 response = http_request(
     http_client,
     "GET",
-    "http://httpbin.org/get",
+    "http://httpbin.org/get";
     headers = Pair{String,String}[
         "Content-Type" => "application/json",
         "User-Agent" => "EasyCurl.jl",
@@ -126,7 +126,7 @@ using EasyCurl
 response = imap_request(
     "imaps://imap.gmail.com:993",
     "username@example.com",
-    "password",
+    "password";
     mailbox = "INBOX",
     command = "SEARCH SINCE 09-Sep-2024",
 )
