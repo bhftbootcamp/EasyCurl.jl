@@ -11,10 +11,10 @@ export http_request,
 export http_body,
     http_status,
     http_headers,
-    http_total_time,
-    http_iserror,
     http_header,
-    http_joinurl
+    http_total_time,
+    http_iserror
+
 
 export HTTPResponse,
     HTTPRequest,
