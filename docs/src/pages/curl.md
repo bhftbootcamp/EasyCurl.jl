@@ -13,3 +13,9 @@ CurlClient
 close
 curl_open
 ```
+
+## Utilities
+
+```@docs
+curl_joinurl
+```

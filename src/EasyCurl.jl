@@ -72,7 +72,7 @@ Optionally configure the client (see [`CurlClient`](@ref) for more details).
 ```julia-repl
 julia> curl_open() do client
            response = http_request(client, "GET", "http://httpbin.org/get")
-           curl_status(response)
+           http_status(response)
        end
 200
 ```
@@ -87,7 +87,7 @@ function curl_open(f::Function, x...; kw...)
 end
 
 """
-    CurlError <: Exception
+    CurlError{code} <: Exception
 
 Type wrapping LibCURL error codes. Returned when a libcurl error occurs.
 
@@ -99,25 +99,25 @@ Type wrapping LibCURL error codes. Returned when a libcurl error occurs.
 
 ```julia-repl
 julia> http_request("GET", "http://httpbin.org/status/400", interface = "9.9.9.9")
-ERROR: CurlError: Failed binding local connection end
+ERROR: CurlError{45}: Failed binding local connection end
 [...]
 
 julia> http_request("GET", "http://httpbin.org/status/400", interface = "")
-ERROR: CurlError: Couldn't connect to server
+ERROR: CurlError{7}: Couldn't connect to server
 [...]
 ```
 """
-struct CurlError <: Exception
+struct CurlError{code} <: Exception
     code::UInt64
     message::String
 
     function CurlError(code::UInt32)
-        return new(code, unsafe_string(LibCURL.curl_easy_strerror(code)))
+        return new{Int(code)}(code, unsafe_string(LibCURL.curl_easy_strerror(code)))
     end
 end
 
 function Base.showerror(io::IO, e::CurlError)
-    print(io, "CurlError: ", e.message)
+    print(io, "CurlError{", e.code, "}: ", e.message)
 end
 
 function curl_easy_escape(c::CurlClient, str::AbstractString, len::Int)

@@ -1,5 +1,22 @@
 #__ Utils
 
+"""
+    curl_joinurl(basepart::String, parts::String...) -> String
+
+Construct a URL by concatenating a `basepart` with one or more path `parts`.
+This function ensures that each segment is separated by a single forward slash (`/`),
+regardless of whether the `basepart` or `parts` already contain slashes at their boundaries.
+
+## Examples
+
+```julia-repl
+julia> curl_joinurl("http://example.com", "path")
+"http://example.com/path"
+
+julia> curl_joinurl("http://example.com/", "/path/to/resource")
+"http://example.com/path/to/resource"
+```
+"""
 function curl_joinurl(basepart::AbstractString, parts::AbstractString...)
     basepart = strip(basepart, '/')
     cleaned_parts = [strip(part, '/') for part in parts if !isempty(part)]
