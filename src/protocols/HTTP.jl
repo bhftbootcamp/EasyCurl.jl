@@ -15,7 +15,6 @@ export http_body,
     http_total_time,
     http_iserror
 
-
 export HTTPResponse,
     HTTPRequest,
     HTTPOptions,
@@ -187,7 +186,7 @@ Represents options for configuring an HTTP request.
 | `password::Union{String,Nothing}` | Password for authentication. | `nothing` |
 | `proxy::Union{String,Nothing}` | Proxy server URL, or `nothing` to bypass proxy settings. | `nothing` |
 | `interface::Union{String,Nothing}` | Specifies a particular network interface to use for the request, or `nothing` to use the default. | `nothing` |
-| `accept_encoding::String` | Specifies the accepted encodings for the response, such as `"gzip"`. | `"gzip"` |
+| `accept_encoding::Union{String,Nothing}` | Specifies the accepted encodings for the response, such as `"gzip"`. | `nothing` |
 | `version::Union{UInt,Nothing}` | Specifies the CURL version to use, or `nothing` to use the default version available. | `nothing` |
 """
 struct HTTPOptions <: CurlOptions
@@ -202,7 +201,7 @@ struct HTTPOptions <: CurlOptions
     password::Union{String,Nothing}
     proxy::Union{String,Nothing}
     interface::Union{String,Nothing}
-    accept_encoding::String
+    accept_encoding::Union{String,Nothing}
     version::Union{UInt,Nothing}
 
     function HTTPOptions(;
