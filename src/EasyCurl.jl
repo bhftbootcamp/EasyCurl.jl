@@ -162,7 +162,7 @@ function get_http_version(c::CurlClient)::Int
     return version_ref[]
 end
 
-function get_total_total_time(c::CurlClient)::Float64
+function get_total_time(c::CurlClient)::Float64
     time_ref = Ref{Cdouble}()
     curl_easy_getinfo(c, CURLINFO_TOTAL_TIME, time_ref)
     return time_ref[]
