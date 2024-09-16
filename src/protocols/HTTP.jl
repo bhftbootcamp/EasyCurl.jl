@@ -291,38 +291,40 @@ end
 #__ libcurl
 
 function perform_request(c::CurlClient, r::HTTPRequest)
-    # Basic request settings
+    # Set the request URL
     curl_easy_setopt(c, CURLOPT_URL, r.url)
+
+    # Set the CA certificate file path
     curl_easy_setopt(c, CURLOPT_CAINFO, LibCURL.cacert)
 
-    # SSL settings
+    # SSL security settings
     curl_easy_setopt(c, CURLOPT_SSL_VERIFYPEER, r.options.ssl_verifypeer)
     curl_easy_setopt(c, CURLOPT_SSL_VERIFYHOST, r.options.ssl_verifyhost ? 2 : 0)
 
-    # Timeouts
+    # Configure connection and response timeouts
     curl_easy_setopt(c, CURLOPT_CONNECTTIMEOUT, r.options.connect_timeout)
     curl_easy_setopt(c, CURLOPT_TIMEOUT, r.options.read_timeout)
 
-    # Set redirection
+    # Redirection settings
     curl_easy_setopt(c, CURLOPT_FOLLOWLOCATION, r.options.location)
     curl_easy_setopt(c, CURLOPT_MAXREDIRS, r.options.max_redirs)
 
-    # Set proxy, interface and encoding options
+    # Set network interface and proxy settings
     curl_easy_setopt(c, CURLOPT_PROXY, something(r.options.proxy, C_NULL))
     curl_easy_setopt(c, CURLOPT_INTERFACE, something(r.options.interface, C_NULL))
     curl_easy_setopt(c, CURLOPT_ACCEPT_ENCODING, something(r.options.accept_encoding, C_NULL))
 
-    # Set authentication
+    # Set user credentials for authentication
     curl_easy_setopt(c, CURLOPT_USERNAME, something(r.options.username, C_NULL))
     curl_easy_setopt(c, CURLOPT_PASSWORD, something(r.options.password, C_NULL))
 
-    # Set HTTP version
+    # Set HTTP version and method
     curl_easy_setopt(c, CURLOPT_HTTP_VERSION, something(r.options.version, CURL_HTTP_VERSION_2TLS))
 
-    # Verbose debug output
+    # Enable verbose mode for detailed debug output
     curl_easy_setopt(c, CURLOPT_VERBOSE, r.options.verbose)
 
-    # Set headers
+    # Set HTTP headers
     for (k, v) in r.headers
         r.header_list_ptr = curl_slist_append(r.header_list_ptr, "$k: $v")
     end
@@ -345,22 +347,22 @@ function perform_request(c::CurlClient, r::HTTPRequest)
         curl_easy_setopt(c, CURLOPT_CUSTOMREQUEST, r.method)
     end
 
-    # Setup callback for response handling
+    # Setup callbacks for response handling
     c_write_callback = @cfunction(write_callback, Csize_t, (Ptr{UInt8}, Csize_t, Csize_t, Ptr{Cvoid}))
-    c_header_callback = @cfunction(header_callback, Csize_t, (Ptr{UInt8}, Csize_t, Csize_t, Ptr{Cvoid}))
-
     curl_easy_setopt(c, CURLOPT_WRITEFUNCTION, c_write_callback)
     curl_easy_setopt(c, CURLOPT_WRITEDATA, pointer_from_objref(r.response))
+
+    c_header_callback = @cfunction(header_callback, Csize_t, (Ptr{UInt8}, Csize_t, Csize_t, Ptr{Cvoid}))
     curl_easy_setopt(c, CURLOPT_HEADERFUNCTION, c_header_callback)
     curl_easy_setopt(c, CURLOPT_HEADERDATA, pointer_from_objref(r.response))
 
-    # Perform request
+    # Perform the request
     curl_easy_perform(c)
 
     # Gather response details
     r.response.version = get_http_version(c)
     r.response.status = get_http_response_status(c)
-    r.response.total_time = get_total_total_time(c)
+    r.response.total_time = get_total_time(c)
 
     return nothing
 end
@@ -403,23 +405,23 @@ julia> http_body(response) |> String |> print
 {
   "args": {
     "qry": "\u4f60\u597d\u55ce"
-  }, 
-  "data": "{\"data\":\"hi\"}", 
-  "files": {}, 
-  "form": {}, 
+  },
+  "data": "{\"data\":\"hi\"}",
+  "files": {},
+  "form": {},
   "headers": {
-    "Accept": "*/*", 
-    "Accept-Encoding": "gzip", 
-    "Content-Length": "13", 
-    "Content-Type": "application/json", 
-    "Host": "httpbin.org", 
-    "User-Agent": "EasyCurl.jl", 
+    "Accept": "*/*",
+    "Accept-Encoding": "gzip",
+    "Content-Length": "13",
+    "Content-Type": "application/json",
+    "Host": "httpbin.org",
+    "User-Agent": "EasyCurl.jl",
     "X-Amzn-Trace-Id": "Root=1-66e0d404-7597b1921ad026293b805690"
-  }, 
+  },
   "json": {
     "data": "hi"
-  }, 
-  "origin": "100.250.50.140", 
+  },
+  "origin": "100.250.50.140",
   "url": "http://httpbin.org/post?qry=\u4f60\u597d\u55ce"
 }
 ```
@@ -486,16 +488,16 @@ julia> http_body(response) |> String |> print
 {
   "args": {
     "qry": "\u4f60\u597d\u55ce"
-  }, 
+  },
   "headers": {
-    "Accept": "*/*", 
-    "Accept-Encoding": "gzip", 
-    "Content-Type": "application/json", 
-    "Host": "httpbin.org", 
-    "User-Agent": "EasyCurl.jl", 
+    "Accept": "*/*",
+    "Accept-Encoding": "gzip",
+    "Content-Type": "application/json",
+    "Host": "httpbin.org",
+    "User-Agent": "EasyCurl.jl",
     "X-Amzn-Trace-Id": "Root=1-66e0e18f-0e26d7757885d0ec1966ef64"
-  }, 
-  "origin": "100.250.50.140", 
+  },
+  "origin": "100.250.50.140",
   "url": "http://httpbin.org/get?qry=\u4f60\u597d\u55ce"
 }
 ```
@@ -548,23 +550,23 @@ julia> http_body(response) |> String |> print
 {
   "args": {
     "qry": "\u4f60\u597d\u55ce"
-  }, 
-  "data": "{\"data\":\"hi\"}", 
-  "files": {}, 
-  "form": {}, 
+  },
+  "data": "{\"data\":\"hi\"}",
+  "files": {},
+  "form": {},
   "headers": {
-    "Accept": "*/*", 
-    "Accept-Encoding": "gzip", 
-    "Content-Length": "13", 
-    "Content-Type": "application/json", 
-    "Host": "httpbin.org", 
-    "User-Agent": "EasyCurl.jl", 
+    "Accept": "*/*",
+    "Accept-Encoding": "gzip",
+    "Content-Length": "13",
+    "Content-Type": "application/json",
+    "Host": "httpbin.org",
+    "User-Agent": "EasyCurl.jl",
     "X-Amzn-Trace-Id": "Root=1-66e0e208-4850928003a928fd230bfd59"
-  }, 
+  },
   "json": {
     "data": "hi"
-  }, 
-  "origin": "100.250.50.140", 
+  },
+  "origin": "100.250.50.140",
   "url": "http://httpbin.org/post?qry=\u4f60\u597d\u55ce"
 }
 ```
@@ -593,23 +595,23 @@ julia> http_body(response) |> String |> print
 {
   "args": {
     "qry": "\u4f60\u597d\u55ce"
-  }, 
-  "data": "{\"data\":\"hi\"}", 
-  "files": {}, 
-  "form": {}, 
+  },
+  "data": "{\"data\":\"hi\"}",
+  "files": {},
+  "form": {},
   "headers": {
-    "Accept": "*/*", 
-    "Accept-Encoding": "gzip", 
-    "Content-Length": "13", 
-    "Content-Type": "application/json", 
-    "Host": "httpbin.org", 
-    "User-Agent": "EasyCurl.jl", 
+    "Accept": "*/*",
+    "Accept-Encoding": "gzip",
+    "Content-Length": "13",
+    "Content-Type": "application/json",
+    "Host": "httpbin.org",
+    "User-Agent": "EasyCurl.jl",
     "X-Amzn-Trace-Id": "Root=1-66e0e239-34f8cfdc41164300719ce1f1"
-  }, 
+  },
   "json": {
     "data": "hi"
-  }, 
-  "origin": "100.250.50.140", 
+  },
+  "origin": "100.250.50.140",
   "url": "http://httpbin.org/put?qry=\u4f60\u597d\u55ce"
 }
 ```
@@ -638,23 +640,23 @@ julia> http_body(response) |> String |> print
 {
   "args": {
     "qry": "\u4f60\u597d\u55ce"
-  }, 
-  "data": "{\"data\":\"hi\"}", 
-  "files": {}, 
-  "form": {}, 
+  },
+  "data": "{\"data\":\"hi\"}",
+  "files": {},
+  "form": {},
   "headers": {
-    "Accept": "*/*", 
-    "Accept-Encoding": "gzip", 
-    "Content-Length": "13", 
-    "Content-Type": "application/json", 
-    "Host": "httpbin.org", 
-    "User-Agent": "EasyCurl.jl", 
+    "Accept": "*/*",
+    "Accept-Encoding": "gzip",
+    "Content-Length": "13",
+    "Content-Type": "application/json",
+    "Host": "httpbin.org",
+    "User-Agent": "EasyCurl.jl",
     "X-Amzn-Trace-Id": "Root=1-66e0e266-5bd4762c619fbd642710bf3d"
-  }, 
+  },
   "json": {
     "data": "hi"
-  }, 
-  "origin": "100.250.50.140", 
+  },
+  "origin": "100.250.50.140",
   "url": "http://httpbin.org/patch?qry=\u4f60\u597d\u55ce"
 }
 ```
@@ -683,23 +685,23 @@ julia> http_body(response) |> String |> print
 {
   "args": {
     "qry": "\u4f60\u597d\u55ce"
-  }, 
-  "data": "{\"data\":\"hi\"}", 
-  "files": {}, 
-  "form": {}, 
+  },
+  "data": "{\"data\":\"hi\"}",
+  "files": {},
+  "form": {},
   "headers": {
-    "Accept": "*/*", 
-    "Accept-Encoding": "gzip", 
-    "Content-Length": "13", 
-    "Content-Type": "application/json", 
-    "Host": "httpbin.org", 
-    "User-Agent": "EasyCurl.jl", 
+    "Accept": "*/*",
+    "Accept-Encoding": "gzip",
+    "Content-Length": "13",
+    "Content-Type": "application/json",
+    "Host": "httpbin.org",
+    "User-Agent": "EasyCurl.jl",
     "X-Amzn-Trace-Id": "Root=1-66e0e292-34acbab950035ea1763c3aca"
-  }, 
+  },
   "json": {
     "data": "hi"
-  }, 
-  "origin": "100.250.50.140", 
+  },
+  "origin": "100.250.50.140",
   "url": "http://httpbin.org/delete?qry=\u4f60\u597d\u55ce"
 }
 ```

@@ -104,39 +104,41 @@ end
 #__ libcurl
 
 function perform_request(c::CurlClient, r::IMAPRequest)
-    # Basic request settings
+    # Set the request URL
     curl_easy_setopt(c, CURLOPT_URL, r.url)
+
+    # Set user credentials for authentication
     curl_easy_setopt(c, CURLOPT_USERNAME, r.username)
     curl_easy_setopt(c, CURLOPT_PASSWORD, r.password)
 
-    # Custom command if provided
+    # Set a custom command if specified
     curl_easy_setopt(c, CURLOPT_CUSTOMREQUEST, something(r.command, C_NULL))
 
-    # Timeouts
+    # Configure connection and response timeouts
     curl_easy_setopt(c, CURLOPT_CONNECTTIMEOUT, r.options.connect_timeout)
     curl_easy_setopt(c, CURLOPT_TIMEOUT, r.options.read_timeout)
 
-    # SSL settings
+    # SSL security settings
     curl_easy_setopt(c, CURLOPT_SSL_VERIFYPEER, r.options.ssl_verifypeer)
     curl_easy_setopt(c, CURLOPT_SSL_VERIFYHOST, r.options.ssl_verifyhost ? 2 : 0)
 
-    # Network settings
+    # Set network interface and proxy settings
     curl_easy_setopt(c, CURLOPT_INTERFACE, something(r.options.interface, C_NULL))
     curl_easy_setopt(c, CURLOPT_PROXY, something(r.options.proxy, C_NULL))
 
-    # Verbose debug output
+    # Enable verbose mode for detailed debug output
     curl_easy_setopt(c, CURLOPT_VERBOSE, r.options.verbose)
 
-    # Setup callback for response handling
+    # Setup callbacks for response handling
     c_write_callback = @cfunction(write_callback, Csize_t, (Ptr{UInt8}, Csize_t, Csize_t, Ptr{Cvoid}))
     curl_easy_setopt(c, CURLOPT_WRITEFUNCTION, c_write_callback)
     curl_easy_setopt(c, CURLOPT_WRITEDATA, pointer_from_objref(r.response))
 
-    # Perform request
+    # Execute the request
     curl_easy_perform(c)
 
     # Gather response details
-    r.response.total_time = get_total_total_time(c)
+    r.response.total_time = get_total_time(c)
 
     return nothing
 end
