@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>HTTP · EasyCurl.jl</title><meta name="title" content="HTTP · EasyCurl.jl"/><meta property="og:title" content="HTTP · EasyCurl.jl"/><meta property="twitter:title" content="HTTP · EasyCurl.jl"/><meta name="description" content="Documentation for EasyCurl.jl."/><meta property="og:description" content="Documentation for EasyCurl.jl."/><meta property="twitter:description" content="Documentation for EasyCurl.jl."/><meta property="og:url" content="https://bhftbootcamp.github.io/EasyCurl.jl/pages/protocols/http/"/><meta property="twitter:url" content="https://bhftbootcamp.github.io/EasyCurl.jl/pages/protocols/http/"/><link rel="canonical" href="https://bhftbootcamp.github.io/EasyCurl.jl/pages/protocols/http/"/><script data-outdated-warner src="../../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../../assets/documenter.js"></script><script src="../../../search_index.js"></script><script src="../../../siteinfo.js"></script><script src="../../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../../assets/themeswap.js"></script><link href="../../../assets/favicon.ico" rel="icon" type="image/x-icon"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../../"><img src="../../../assets/logo.svg" alt="EasyCurl.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../../">EasyCurl.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../../">Home</a></li><li><span class="tocitem">API Reference</span><ul><li><a class="tocitem" href="../../curl/">Curl Interface</a></li><li><input class="collapse-toggle" id="menuitem-2-2" type="checkbox" checked/><label class="tocitem" for="menuitem-2-2"><span class="docs-label">Protocols</span><i class="docs-chevron"></i></label><ul class="collapsed"><li class="is-active"><a class="tocitem" href>HTTP</a><ul class="internal"><li><a class="tocitem" href="#Types"><span>Types</span></a></li><li><a class="tocitem" href="#Methods"><span>Methods</span></a></li><li><a class="tocitem" href="#Utilities"><span>Utilities</span></a></li></ul></li><li><a class="tocitem" href="../imap/">IMAP</a></li></ul></li><li><a class="tocitem" href="../../constants/">Constants</a></li></ul></li><li><span class="tocitem">For Developers</span><ul><li><a class="tocitem" href="../../error_handling/">Error handling</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">API Reference</a></li><li><a class="is-disabled">Protocols</a></li><li class="is-active"><a href>HTTP</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>HTTP</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/bhftbootcamp/EasyCurl.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/bhftbootcamp/EasyCurl.jl/blob/master/docs/src/pages/protocols/http.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="HTTP"><a class="docs-heading-anchor" href="#HTTP">HTTP</a><a id="HTTP-1"></a><a class="docs-heading-anchor-permalink" href="#HTTP" title="Permalink"></a></h1><h2 id="Types"><a class="docs-heading-anchor" href="#Types">Types</a><a id="Types-1"></a><a class="docs-heading-anchor-permalink" href="#Types" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="EasyCurl.HTTPResponse" href="#EasyCurl.HTTPResponse"><code>EasyCurl.HTTPResponse</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">HTTPResponse &lt;: CurlResponse</code></pre><p>An HTTP response object returned on a request completion.</p><p><strong>Fields</strong></p><table><tr><th style="text-align: left">Name</th><th style="text-align: left">Description</th><th style="text-align: left">Accessors (<code>get</code>)</th></tr><tr><td style="text-align: left"><code>status::Int</code></td><td style="text-align: left">The HTTP status code of the response.</td><td style="text-align: left"><code>http_status(x)</code></td></tr><tr><td style="text-align: left"><code>version::Int</code></td><td style="text-align: left">The HTTP version received in the response.</td><td style="text-align: left"><code>http_version(x)</code></td></tr><tr><td style="text-align: left"><code>total_time::Float64</code></td><td style="text-align: left">Total time spent receiving a response in seconds.</td><td style="text-align: left"><code>http_total_time(x)</code>, <code>curl_total_time(x)</code></td></tr><tr><td style="text-align: left"><code>body::Vector{UInt8}</code></td><td style="text-align: left">The response body as a vector of bytes.</td><td style="text-align: left"><code>http_body(x)</code>, <code>curl_body(x)</code></td></tr><tr><td style="text-align: left"><code>headers::Vector{Pair{String,String}}</code></td><td style="text-align: left">Headers received in the HTTP response.</td><td style="text-align: left"><code>http_headers(x)</code></td></tr></table></div><a class="docs-sourcelink" target="_blank" href="https://github.com/bhftbootcamp/EasyCurl.jl/blob/32acef61839e11b0f3a187083145a6e4e7949c55/src/protocols/HTTP.jl#L47-L60">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="EasyCurl.HTTPOptions" href="#EasyCurl.HTTPOptions"><code>EasyCurl.HTTPOptions</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">HTTPOptions &lt;: CurlOptions</code></pre><p>Represents options for configuring an HTTP request.</p><p><strong>Fields</strong></p><table><tr><th style="text-align: left">Name</th><th style="text-align: left">Description</th><th style="text-align: left">Default</th></tr><tr><td style="text-align: left"><code>location::Bool</code></td><td style="text-align: left">Allow HTTP redirects.</td><td style="text-align: left"><code>true</code></td></tr><tr><td style="text-align: left"><code>max_redirs::Int</code></td><td style="text-align: left">Maximum number of redirects.</td><td style="text-align: left"><code>10</code></td></tr><tr><td style="text-align: left"><code>connect_timeout::Real</code></td><td style="text-align: left">Maximum time in seconds that you allow the connection phase to take.</td><td style="text-align: left"><code>10</code></td></tr><tr><td style="text-align: left"><code>read_timeout::Real</code></td><td style="text-align: left">Timeout in seconds for reading the response.</td><td style="text-align: left"><code>30</code></td></tr><tr><td style="text-align: left"><code>ssl_verifyhost::Bool</code></td><td style="text-align: left">Enables SSL certificate&#39;s host verification.</td><td style="text-align: left"><code>true</code></td></tr><tr><td style="text-align: left"><code>ssl_verifypeer::Bool</code></td><td style="text-align: left">Enables the SSL certificate verification.</td><td style="text-align: left"><code>true</code></td></tr><tr><td style="text-align: left"><code>verbose::Bool</code></td><td style="text-align: left">Enables detailed output from Curl (useful for debugging).</td><td style="text-align: left"><code>false</code></td></tr><tr><td style="text-align: left"><code>username::Union{String,Nothing}</code></td><td style="text-align: left">Username for authentication.</td><td style="text-align: left"><code>nothing</code></td></tr><tr><td style="text-align: left"><code>password::Union{String,Nothing}</code></td><td style="text-align: left">Password for authentication.</td><td style="text-align: left"><code>nothing</code></td></tr><tr><td style="text-align: left"><code>proxy::Union{String,Nothing}</code></td><td style="text-align: left">Proxy server URL, or <code>nothing</code> to bypass proxy settings.</td><td style="text-align: left"><code>nothing</code></td></tr><tr><td style="text-align: left"><code>interface::Union{String,Nothing}</code></td><td style="text-align: left">Specifies a particular network interface to use for the request, or <code>nothing</code> to use the default.</td><td style="text-align: left"><code>nothing</code></td></tr><tr><td style="text-align: left"><code>accept_encoding::Union{String,Nothing}</code></td><td style="text-align: left">Specifies the accepted encodings for the response, such as <code>&quot;gzip&quot;</code>.</td><td style="text-align: left"><code>nothing</code></td></tr><tr><td style="text-align: left"><code>version::Union{UInt,Nothing}</code></td><td style="text-align: left">Specifies the CURL version to use, or <code>nothing</code> to use the default version available.</td><td style="text-align: left"><code>nothing</code></td></tr></table></div><a class="docs-sourcelink" target="_blank" href="https://github.com/bhftbootcamp/EasyCurl.jl/blob/32acef61839e11b0f3a187083145a6e4e7949c55/src/protocols/HTTP.jl#L170-L191">source</a></section></article><h2 id="Methods"><a class="docs-heading-anchor" href="#Methods">Methods</a><a id="Methods-1"></a><a class="docs-heading-anchor-permalink" href="#Methods" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="EasyCurl.http_request" href="#EasyCurl.http_request"><code>EasyCurl.http_request</code></a> — <span class="docstring-category">Function</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">http_request(method::String, url::String; kw...) -&gt; HTTPResponse</code></pre><p>Send a <code>url</code> HTTP request using as <code>method</code> one of <code>&quot;GET&quot;</code>, <code>&quot;POST&quot;</code>, etc. and return a <a href="#EasyCurl.HTTPResponse"><code>HTTPResponse</code></a> object.</p><p><strong>Keyword arguments</strong></p><table><tr><th style="text-align: left">Name</th><th style="text-align: left">Description</th><th style="text-align: left">Default</th></tr><tr><td style="text-align: left"><code>query</code></td><td style="text-align: left">Request query dictionary or string.</td><td style="text-align: left"><code>nothing</code></td></tr><tr><td style="text-align: left"><code>body</code></td><td style="text-align: left">Request body.</td><td style="text-align: left"><code>UInt8[]</code></td></tr><tr><td style="text-align: left"><code>headers::Vector{Pair{String,String}}</code></td><td style="text-align: left">Request headers.</td><td style="text-align: left"><code>Pair{String,String}[]</code></td></tr><tr><td style="text-align: left"><code>status_exception::Bool</code></td><td style="text-align: left">Whether to throw an exception if the response status code indicates an error.</td><td style="text-align: left"><code>true</code></td></tr><tr><td style="text-align: left"><code>retry::Int64</code></td><td style="text-align: left">Number of retries.</td><td style="text-align: left"><code>0</code></td></tr><tr><td style="text-align: left"><code>retry_delay::Real</code></td><td style="text-align: left">Delay after failed request.</td><td style="text-align: left"><code>0.25</code></td></tr><tr><td style="text-align: left"><code>options...</code></td><td style="text-align: left">Another HTTP request <a href="#EasyCurl.HTTPOptions">options</a>.</td><td style="text-align: left"></td></tr></table><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; response = http_request(
+           &quot;POST&quot;,
+           &quot;http://httpbin.org/post&quot;;
+           headers = Pair{String,String}[
+               &quot;Content-Type&quot; =&gt; &quot;application/json&quot;,
+               &quot;User-Agent&quot; =&gt; &quot;EasyCurl.jl&quot;,
+           ],
+           query = &quot;qry=你好嗎&quot;,
+           body = &quot;{&quot;data&quot;:&quot;hi&quot;}&quot;,
+           interface = &quot;en0&quot;,
+           read_timeout = 5,
+           connect_timeout = 10,
+           retry = 10,
+       );
+
+julia&gt; http_body(response) |&gt; String |&gt; print
+{
+  &quot;args&quot;: {
+    &quot;qry&quot;: &quot;你好嗎&quot;
+  },
+  &quot;data&quot;: &quot;{&quot;data&quot;:&quot;hi&quot;}&quot;,
+  &quot;files&quot;: {},
+  &quot;form&quot;: {},
+  &quot;headers&quot;: {
+    &quot;Accept&quot;: &quot;*/*&quot;,
+    &quot;Accept-Encoding&quot;: &quot;gzip&quot;,
+    &quot;Content-Length&quot;: &quot;13&quot;,
+    &quot;Content-Type&quot;: &quot;application/json&quot;,
+    &quot;Host&quot;: &quot;httpbin.org&quot;,
+    &quot;User-Agent&quot;: &quot;EasyCurl.jl&quot;,
+    &quot;X-Amzn-Trace-Id&quot;: &quot;Root=1-66e0d404-7597b1921ad026293b805690&quot;
+  },
+  &quot;json&quot;: {
+    &quot;data&quot;: &quot;hi&quot;
+  },
+  &quot;origin&quot;: &quot;100.250.50.140&quot;,
+  &quot;url&quot;: &quot;http://httpbin.org/post?qry=你好嗎&quot;
+}</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/bhftbootcamp/EasyCurl.jl/blob/32acef61839e11b0f3a187083145a6e4e7949c55/src/protocols/HTTP.jl#L370-L428">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="EasyCurl.http_get" href="#EasyCurl.http_get"><code>EasyCurl.http_get</code></a> — <span class="docstring-category">Function</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">http_get(url::AbstractString; kw...) -&gt; HTTPResponse</code></pre><p>Shortcut for <a href="#EasyCurl.http_request"><code>http_request</code></a> function, work similar to <code>http_request(&quot;GET&quot;, url; kw...)</code>.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; response = http_get(
+           &quot;http://httpbin.org/get&quot;;
+           headers = Pair{String,String}[
+               &quot;Content-Type&quot; =&gt; &quot;application/json&quot;,
+               &quot;User-Agent&quot; =&gt; &quot;EasyCurl.jl&quot;,
+           ],
+           query = Dict(&quot;qry&quot; =&gt; &quot;你好嗎&quot;),
+       );
+
+julia&gt; http_body(response) |&gt; String |&gt; print
+{
+  &quot;args&quot;: {
+    &quot;qry&quot;: &quot;你好嗎&quot;
+  },
+  &quot;headers&quot;: {
+    &quot;Accept&quot;: &quot;*/*&quot;,
+    &quot;Accept-Encoding&quot;: &quot;gzip&quot;,
+    &quot;Content-Type&quot;: &quot;application/json&quot;,
+    &quot;Host&quot;: &quot;httpbin.org&quot;,
+    &quot;User-Agent&quot;: &quot;EasyCurl.jl&quot;,
+    &quot;X-Amzn-Trace-Id&quot;: &quot;Root=1-66e0e18f-0e26d7757885d0ec1966ef64&quot;
+  },
+  &quot;origin&quot;: &quot;100.250.50.140&quot;,
+  &quot;url&quot;: &quot;http://httpbin.org/get?qry=你好嗎&quot;
+}</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/bhftbootcamp/EasyCurl.jl/blob/32acef61839e11b0f3a187083145a6e4e7949c55/src/protocols/HTTP.jl#L470-L504">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="EasyCurl.http_head" href="#EasyCurl.http_head"><code>EasyCurl.http_head</code></a> — <span class="docstring-category">Function</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">http_head(url::AbstractString; kw...) -&gt; HTTPResponse</code></pre><p>Shortcut for <a href="#EasyCurl.http_request"><code>http_request</code></a> function, work similar to <code>http_request(&quot;HEAD&quot;, url; kw...)</code>.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; response = http_head(
+           &quot;http://httpbin.org/get&quot;;
+           headers = Pair{String,String}[
+               &quot;Content-Type&quot; =&gt; &quot;application/json&quot;,
+               &quot;User-Agent&quot; =&gt; &quot;EasyCurl.jl&quot;,
+           ],
+           query = &quot;qry=你好嗎&quot;,
+           interface = &quot;0.0.0.0&quot;,
+       );
+
+julia&gt; http_body(response)
+UInt8[]</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/bhftbootcamp/EasyCurl.jl/blob/32acef61839e11b0f3a187083145a6e4e7949c55/src/protocols/HTTP.jl#L507-L528">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="EasyCurl.http_post" href="#EasyCurl.http_post"><code>EasyCurl.http_post</code></a> — <span class="docstring-category">Function</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">http_post(url::AbstractString; kw...) -&gt; HTTPResponse</code></pre><p>Shortcut for <a href="#EasyCurl.http_request"><code>http_request</code></a> function, work similar to <code>http_request(&quot;POST&quot;, url; kw...)</code>.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; response = http_post(
+           &quot;http://httpbin.org/post&quot;;
+           headers = Pair{String,String}[
+               &quot;Content-Type&quot; =&gt; &quot;application/json&quot;,
+               &quot;User-Agent&quot; =&gt; &quot;EasyCurl.jl&quot;,
+           ],
+           query = &quot;qry=你好嗎&quot;,
+           body = &quot;{&quot;data&quot;:&quot;hi&quot;}&quot;,
+       );
+
+julia&gt; http_body(response) |&gt; String |&gt; print
+{
+  &quot;args&quot;: {
+    &quot;qry&quot;: &quot;你好嗎&quot;
+  },
+  &quot;data&quot;: &quot;{&quot;data&quot;:&quot;hi&quot;}&quot;,
+  &quot;files&quot;: {},
+  &quot;form&quot;: {},
+  &quot;headers&quot;: {
+    &quot;Accept&quot;: &quot;*/*&quot;,
+    &quot;Accept-Encoding&quot;: &quot;gzip&quot;,
+    &quot;Content-Length&quot;: &quot;13&quot;,
+    &quot;Content-Type&quot;: &quot;application/json&quot;,
+    &quot;Host&quot;: &quot;httpbin.org&quot;,
+    &quot;User-Agent&quot;: &quot;EasyCurl.jl&quot;,
+    &quot;X-Amzn-Trace-Id&quot;: &quot;Root=1-66e0e208-4850928003a928fd230bfd59&quot;
+  },
+  &quot;json&quot;: {
+    &quot;data&quot;: &quot;hi&quot;
+  },
+  &quot;origin&quot;: &quot;100.250.50.140&quot;,
+  &quot;url&quot;: &quot;http://httpbin.org/post?qry=你好嗎&quot;
+}</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/bhftbootcamp/EasyCurl.jl/blob/32acef61839e11b0f3a187083145a6e4e7949c55/src/protocols/HTTP.jl#L531-L573">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="EasyCurl.http_put" href="#EasyCurl.http_put"><code>EasyCurl.http_put</code></a> — <span class="docstring-category">Function</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">http_put(url::AbstractString; kw...) -&gt; HTTPResponse</code></pre><p>Shortcut for <a href="#EasyCurl.http_request"><code>http_request</code></a> function, work similar to <code>http_request(&quot;PUT&quot;, url; kw...)</code>.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; response = http_put(
+           &quot;http://httpbin.org/put&quot;;
+           headers = Pair{String,String}[
+               &quot;Content-Type&quot; =&gt; &quot;application/json&quot;,
+               &quot;User-Agent&quot; =&gt; &quot;EasyCurl.jl&quot;,
+           ],
+           query = &quot;qry=你好嗎&quot;,
+           body = &quot;{&quot;data&quot;:&quot;hi&quot;}&quot;,
+       );
+
+julia&gt; http_body(response) |&gt; String |&gt; print
+{
+  &quot;args&quot;: {
+    &quot;qry&quot;: &quot;你好嗎&quot;
+  },
+  &quot;data&quot;: &quot;{&quot;data&quot;:&quot;hi&quot;}&quot;,
+  &quot;files&quot;: {},
+  &quot;form&quot;: {},
+  &quot;headers&quot;: {
+    &quot;Accept&quot;: &quot;*/*&quot;,
+    &quot;Accept-Encoding&quot;: &quot;gzip&quot;,
+    &quot;Content-Length&quot;: &quot;13&quot;,
+    &quot;Content-Type&quot;: &quot;application/json&quot;,
+    &quot;Host&quot;: &quot;httpbin.org&quot;,
+    &quot;User-Agent&quot;: &quot;EasyCurl.jl&quot;,
+    &quot;X-Amzn-Trace-Id&quot;: &quot;Root=1-66e0e239-34f8cfdc41164300719ce1f1&quot;
+  },
+  &quot;json&quot;: {
+    &quot;data&quot;: &quot;hi&quot;
+  },
+  &quot;origin&quot;: &quot;100.250.50.140&quot;,
+  &quot;url&quot;: &quot;http://httpbin.org/put?qry=你好嗎&quot;
+}</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/bhftbootcamp/EasyCurl.jl/blob/32acef61839e11b0f3a187083145a6e4e7949c55/src/protocols/HTTP.jl#L576-L618">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="EasyCurl.http_patch" href="#EasyCurl.http_patch"><code>EasyCurl.http_patch</code></a> — <span class="docstring-category">Function</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">http_patch(url::AbstractString; kw...) -&gt; HTTPResponse</code></pre><p>Shortcut for <a href="#EasyCurl.http_request"><code>http_request</code></a> function, work similar to <code>http_request(&quot;PATCH&quot;, url; kw...)</code>.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; response = http_patch(
+           &quot;http://httpbin.org/patch&quot;;
+           headers = Pair{String,String}[
+               &quot;Content-Type&quot; =&gt; &quot;application/json&quot;,
+               &quot;User-Agent&quot; =&gt; &quot;EasyCurl.jl&quot;,
+           ],
+           query = &quot;qry=你好嗎&quot;,
+           body = &quot;{&quot;data&quot;:&quot;hi&quot;}&quot;,
+       );
+
+julia&gt; http_body(response) |&gt; String |&gt; print
+{
+  &quot;args&quot;: {
+    &quot;qry&quot;: &quot;你好嗎&quot;
+  },
+  &quot;data&quot;: &quot;{&quot;data&quot;:&quot;hi&quot;}&quot;,
+  &quot;files&quot;: {},
+  &quot;form&quot;: {},
+  &quot;headers&quot;: {
+    &quot;Accept&quot;: &quot;*/*&quot;,
+    &quot;Accept-Encoding&quot;: &quot;gzip&quot;,
+    &quot;Content-Length&quot;: &quot;13&quot;,
+    &quot;Content-Type&quot;: &quot;application/json&quot;,
+    &quot;Host&quot;: &quot;httpbin.org&quot;,
+    &quot;User-Agent&quot;: &quot;EasyCurl.jl&quot;,
+    &quot;X-Amzn-Trace-Id&quot;: &quot;Root=1-66e0e266-5bd4762c619fbd642710bf3d&quot;
+  },
+  &quot;json&quot;: {
+    &quot;data&quot;: &quot;hi&quot;
+  },
+  &quot;origin&quot;: &quot;100.250.50.140&quot;,
+  &quot;url&quot;: &quot;http://httpbin.org/patch?qry=你好嗎&quot;
+}</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/bhftbootcamp/EasyCurl.jl/blob/32acef61839e11b0f3a187083145a6e4e7949c55/src/protocols/HTTP.jl#L621-L663">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="EasyCurl.http_delete" href="#EasyCurl.http_delete"><code>EasyCurl.http_delete</code></a> — <span class="docstring-category">Function</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">http_delete(url::AbstractString; kw...) -&gt; HTTPResponse</code></pre><p>Shortcut for <a href="#EasyCurl.http_request"><code>http_request</code></a> function, work similar to <code>http_request(&quot;DELETE&quot;, url; kw...)</code>.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; response = http_delete(
+           &quot;http://httpbin.org/delete&quot;;
+           headers = Pair{String,String}[
+               &quot;Content-Type&quot; =&gt; &quot;application/json&quot;,
+               &quot;User-Agent&quot; =&gt; &quot;EasyCurl.jl&quot;,
+           ],
+           query = &quot;qry=你好嗎&quot;,
+           body = &quot;{&quot;data&quot;:&quot;hi&quot;}&quot;,
+       );
+
+julia&gt; http_body(response) |&gt; String |&gt; print
+{
+  &quot;args&quot;: {
+    &quot;qry&quot;: &quot;你好嗎&quot;
+  },
+  &quot;data&quot;: &quot;{&quot;data&quot;:&quot;hi&quot;}&quot;,
+  &quot;files&quot;: {},
+  &quot;form&quot;: {},
+  &quot;headers&quot;: {
+    &quot;Accept&quot;: &quot;*/*&quot;,
+    &quot;Accept-Encoding&quot;: &quot;gzip&quot;,
+    &quot;Content-Length&quot;: &quot;13&quot;,
+    &quot;Content-Type&quot;: &quot;application/json&quot;,
+    &quot;Host&quot;: &quot;httpbin.org&quot;,
+    &quot;User-Agent&quot;: &quot;EasyCurl.jl&quot;,
+    &quot;X-Amzn-Trace-Id&quot;: &quot;Root=1-66e0e292-34acbab950035ea1763c3aca&quot;
+  },
+  &quot;json&quot;: {
+    &quot;data&quot;: &quot;hi&quot;
+  },
+  &quot;origin&quot;: &quot;100.250.50.140&quot;,
+  &quot;url&quot;: &quot;http://httpbin.org/delete?qry=你好嗎&quot;
+}</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/bhftbootcamp/EasyCurl.jl/blob/32acef61839e11b0f3a187083145a6e4e7949c55/src/protocols/HTTP.jl#L666-L708">source</a></section></article><h2 id="Utilities"><a class="docs-heading-anchor" href="#Utilities">Utilities</a><a id="Utilities-1"></a><a class="docs-heading-anchor-permalink" href="#Utilities" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="EasyCurl.http_iserror" href="#EasyCurl.http_iserror"><code>EasyCurl.http_iserror</code></a> — <span class="docstring-category">Function</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">http_iserror(x::HTTPResponse) -&gt; Bool</code></pre><p>Determines if the HTTP response indicates an error (status codes 400 and above).</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; response = http_request(&quot;GET&quot;, &quot;http://httpbin.org/get&quot;);
+
+julia&gt; http_iserror(response)
+false</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/bhftbootcamp/EasyCurl.jl/blob/32acef61839e11b0f3a187083145a6e4e7949c55/src/protocols/HTTP.jl#L101-L114">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="EasyCurl.http_headers" href="#EasyCurl.http_headers"><code>EasyCurl.http_headers</code></a> — <span class="docstring-category">Function</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">http_headers(x::HTTPResponse, key::String) -&gt; Vector{String}</code></pre><p>Retrieve all values for a specific header field from a <a href="#EasyCurl.HTTPResponse"><code>HTTPResponse</code></a> object. This function is case-insensitive with regard to the header field name.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; response = http_request(&quot;GET&quot;, &quot;http://httpbin.org/get&quot;);
+
+julia&gt; http_headers(response, &quot;Content-Type&quot;)
+1-element Vector{String}:
+ &quot;application/json&quot;
+
+julia&gt; http_headers(response, &quot;nonexistent-header&quot;)
+String[]</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/bhftbootcamp/EasyCurl.jl/blob/32acef61839e11b0f3a187083145a6e4e7949c55/src/protocols/HTTP.jl#L117-L135">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="EasyCurl.http_header" href="#EasyCurl.http_header"><code>EasyCurl.http_header</code></a> — <span class="docstring-category">Function</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">http_header(x::HTTPResponse, key::String, default = nothing)</code></pre><p>Retrieve the first value of a specific header field by <code>key</code> from a <a href="#EasyCurl.HTTPResponse"><code>HTTPResponse</code></a> object. If the header is not found, the function returns a <code>default</code> value. This function is case-insensitive with regard to the header field name.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; response = http_request(&quot;GET&quot;, &quot;http://httpbin.org/get&quot;);
+
+julia&gt; http_header(response, &quot;Content-Type&quot;)
+&quot;application/json&quot;
+
+julia&gt; http_header(response, &quot;nonexistent-header&quot;, &quot;default-value&quot;)
+&quot;default-value&quot;</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/bhftbootcamp/EasyCurl.jl/blob/32acef61839e11b0f3a187083145a6e4e7949c55/src/protocols/HTTP.jl#L144-L162">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="EasyCurl.HTTP_VERSION_MAP" href="#EasyCurl.HTTP_VERSION_MAP"><code>EasyCurl.HTTP_VERSION_MAP</code></a> — <span class="docstring-category">Constant</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">HTTP_VERSION_MAP::Dict{UInt64,String}</code></pre><p>Maps CURL numerical constants for HTTP versions to their string representations.</p><ul><li><code>0x00000001</code> (<code>CURL_HTTP_VERSION_1_0</code>) - <code>&quot;1.0&quot;</code>: HTTP 1.0</li><li><code>0x00000002</code> (<code>CURL_HTTP_VERSION_1_1</code>) - <code>&quot;1.1&quot;</code>: HTTP 1.1</li><li><code>0x00000003</code> (<code>CURL_HTTP_VERSION_2_0</code>) - <code>&quot;2.0&quot;</code>: HTTP 2.0</li></ul></div><a class="docs-sourcelink" target="_blank" href="https://github.com/bhftbootcamp/EasyCurl.jl/blob/32acef61839e11b0f3a187083145a6e4e7949c55/src/protocols/HTTP.jl#L32-L40">source</a></section></article></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../curl/">« Curl Interface</a><a class="docs-footer-nextpage" href="../imap/">IMAP »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.7.0 on <span class="colophon-date" title="Monday 16 September 2024 06:30">Monday 16 September 2024</span>. Using Julia version 1.10.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
