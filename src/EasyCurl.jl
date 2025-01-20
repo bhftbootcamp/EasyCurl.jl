@@ -66,7 +66,7 @@ Base.close(c::CurlClient) = curl_easy_cleanup(c)
 
 Checks if the `client` instance is open by verifying the internal libcurl handle.
 """
-Base.isopen(client::CurlClient) = client.curl_handle != C_NULL
+Base.isopen(c::CurlClient) = c.curl_handle != C_NULL
 
 """
     curl_open(f::Function, x...; kw...)
