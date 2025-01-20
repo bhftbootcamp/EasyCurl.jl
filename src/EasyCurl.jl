@@ -62,6 +62,13 @@ Closes the `client` instance by cleaning up the associated libcurl easy handle.
 Base.close(c::CurlClient) = curl_easy_cleanup(c)
 
 """
+    isopen(client::CurlClient)
+
+Checks if the `client` instance is open by verifying the internal libcurl handle.
+"""
+Base.isopen(client::CurlClient) = client.curl_handle != C_NULL
+
+"""
     curl_open(f::Function, x...; kw...)
 
 A helper function for executing a batch of curl requests, using the same client.
