@@ -87,11 +87,11 @@ This example shows how to use `CurlClient` for making HTTP requests by reusing t
 ```julia
 using EasyCurl
 
-http_client = CurlClient()
+curl_client = CurlClient()
 
 # Perform a GET request
 response = http_request(
-    http_client,
+    curl_client,
     "GET",
     "http://httpbin.org/get";
     headers = Pair{String,String}[
@@ -115,7 +115,7 @@ julia> http_body(response) |> String |> print
   "url": "http://httpbin.org/get"
 }
 
-close(http_client)
+close(curl_client)
 ```
 
 In addition to HTTP, you can also make IMAP requests to retrieve email from a server:
