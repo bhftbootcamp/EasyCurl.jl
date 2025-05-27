@@ -58,7 +58,7 @@ end
 Represents an error from a libcurl easy interface call.
 
 ## Fields
-- `code::UInt32`: The libcurl error code.
+- `code::Int`: The libcurl error code.
 - `message::String`: The corresponding error message from libcurl.
 
 ## Examples
@@ -238,7 +238,7 @@ function curl_multi_perform(c::CurlClient)
         if mc != CURLM_OK
             throw(CurlMultiError(mc))
         end
-        r_ctx.error !== nothing && throw(r_ctx.error)
+        isnothing(r_ctx.error) || throw(r_ctx.error)
     end
     while true
         p = LibCURL.curl_multi_info_read(c.multi_handle, Ref{Cint}(0))
@@ -297,12 +297,10 @@ function write_callback(buf::Ptr{UInt8}, s::Csize_t, n::Csize_t, p_ctxt::Ptr{Cvo
     r_ctx::CurlResponseContext = unsafe_pointer_to_objref(p_ctxt)
     sz = s * n
     data = Array{UInt8}(undef, sz)
-    ccall(:memcpy, Ptr{Cvoid}, (Ptr{Cvoid}, Ptr{Cvoid}, UInt64), data, buf, sz)
+    unsafe_copyto!(pointer(data), buf, sz)
     try
         write(r_ctx.stream, data)
-        if r_ctx.on_data !== nothing
-            r_ctx.on_data(r_ctx.stream)
-        end
+        isnothing(r_ctx.on_data) || r_ctx.on_data(r_ctx.stream)
     catch e
         r_ctx.error = e
     end
@@ -314,7 +312,7 @@ function header_callback(buf::Ptr{UInt8}, s::Csize_t, n::Csize_t, p_ctxt::Ptr{Cv
     sz = s * n
     header = unsafe_string(buf, sz)
     value = split_header(header)
-    value !== nothing && push!(r_ctx.headers, value)
+    isnothing(value) || push!(r_ctx.headers, value)
     return sz
 end
 
