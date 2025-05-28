@@ -11,7 +11,7 @@ CurlClient
 
 ```@docs
 close
-curl_open
+curl_session
 ```
 
 ## Utilities

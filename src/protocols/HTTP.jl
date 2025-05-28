@@ -1,6 +1,7 @@
 #__ HTTP
 
 export http_request,
+    http_open,
     http_get,
     http_patch,
     http_post,
@@ -65,10 +66,6 @@ mutable struct HTTPResponse <: CurlResponse
     total_time::Float64
     body::Vector{UInt8}
     headers::Vector{Pair{String,String}}
-
-    function HTTPResponse()
-        return new(0, 0, 0.0, Vector{UInt8}(), Vector{Pair{String,String}}())
-    end
 end
 
 http_status(x::HTTPResponse) = x.status
@@ -79,6 +76,10 @@ http_headers(x::HTTPResponse) = x.headers
 
 curl_total_time(x::HTTPResponse) = http_total_time(x)
 curl_body(x::HTTPResponse) = http_body(x)
+
+function HTTPResponse(x::CurlResponseContext)
+    return HTTPResponse(x.status, x.version, x.total_time, take!(x.stream), x.headers,)
+end
 
 # COV_EXCL_START
 function Base.show(io::IO, x::HTTPResponse)
@@ -290,85 +291,68 @@ mutable struct HTTPRequest <: CurlRequest
     body::Vector{UInt8}
     options::HTTPOptions
     header_list_ptr::Ptr{Cvoid}
-    response::HTTPResponse
+    response_context::CurlResponseContext
 end
 
 #__ libcurl
 
 function perform_request(c::CurlClient, r::HTTPRequest)
-    # Set the request URL
-    curl_easy_setopt(c, CURLOPT_URL, r.url)
+    curl_multi_add_handle(c)
+    try
+        curl_easy_setopt(c, CURLOPT_URL, r.url)
+        curl_easy_setopt(c, CURLOPT_CAINFO, LibCURL.cacert)
+        curl_easy_setopt(c, CURLOPT_SSL_VERIFYPEER, r.options.ssl_verifypeer)
+        curl_easy_setopt(c, CURLOPT_SSL_VERIFYHOST, r.options.ssl_verifyhost ? 2 : 0)
+        curl_easy_setopt(c, CURLOPT_CONNECTTIMEOUT, r.options.connect_timeout)
+        curl_easy_setopt(c, CURLOPT_TIMEOUT, r.options.read_timeout)
+        curl_easy_setopt(c, CURLOPT_FOLLOWLOCATION, r.options.location)
+        curl_easy_setopt(c, CURLOPT_MAXREDIRS, r.options.max_redirs)
+        curl_easy_setopt(c, CURLOPT_PROXY, something(r.options.proxy, C_NULL))
+        curl_easy_setopt(c, CURLOPT_INTERFACE, something(r.options.interface, C_NULL))
+        curl_easy_setopt(c, CURLOPT_ACCEPT_ENCODING, something(r.options.accept_encoding, C_NULL))
+        curl_easy_setopt(c, CURLOPT_USERNAME, something(r.options.username, C_NULL))
+        curl_easy_setopt(c, CURLOPT_PASSWORD, something(r.options.password, C_NULL))
+        curl_easy_setopt(c, CURLOPT_HTTP_VERSION, something(r.options.version, CURL_HTTP_VERSION_2TLS))
+        curl_easy_setopt(c, CURLOPT_VERBOSE, r.options.verbose)
 
-    # Set the CA certificate file path
-    curl_easy_setopt(c, CURLOPT_CAINFO, LibCURL.cacert)
+        for (k, v) in r.headers
+            r.header_list_ptr = curl_slist_append(r.header_list_ptr, "$k: $v")
+        end
+        curl_easy_setopt(c, CURLOPT_HTTPHEADER, r.header_list_ptr)
 
-    # SSL security settings
-    curl_easy_setopt(c, CURLOPT_SSL_VERIFYPEER, r.options.ssl_verifypeer)
-    curl_easy_setopt(c, CURLOPT_SSL_VERIFYHOST, r.options.ssl_verifyhost ? 2 : 0)
+        if r.method == "GET"
+            curl_easy_setopt(c, CURLOPT_HTTPGET, 1)
+        elseif r.method == "HEAD"
+            curl_easy_setopt(c, CURLOPT_NOBODY, 1)
+        elseif r.method == "POST"
+            curl_easy_setopt(c, CURLOPT_POST, 1)
+            curl_easy_setopt(c, CURLOPT_POSTFIELDSIZE, length(r.body))
+            curl_easy_setopt(c, CURLOPT_COPYPOSTFIELDS, pointer(r.body))
+        elseif r.method == "PUT" || r.method == "PATCH"
+            curl_easy_setopt(c, CURLOPT_POSTFIELDS, r.body)
+            curl_easy_setopt(c, CURLOPT_POSTFIELDSIZE, length(r.body))
+            curl_easy_setopt(c, CURLOPT_CUSTOMREQUEST, r.method)
+        elseif r.method == "DELETE"
+            curl_easy_setopt(c, CURLOPT_CUSTOMREQUEST, r.method)
+        end
 
-    # Configure connection and response timeouts
-    curl_easy_setopt(c, CURLOPT_CONNECTTIMEOUT, r.options.connect_timeout)
-    curl_easy_setopt(c, CURLOPT_TIMEOUT, r.options.read_timeout)
+        c_write_callback = @cfunction(write_callback, Csize_t, (Ptr{UInt8}, Csize_t, Csize_t, Ptr{Cvoid}))
+        curl_easy_setopt(c, CURLOPT_WRITEFUNCTION, c_write_callback)
+        curl_easy_setopt(c, CURLOPT_WRITEDATA, pointer_from_objref(r.response_context))
 
-    # Redirection settings
-    curl_easy_setopt(c, CURLOPT_FOLLOWLOCATION, r.options.location)
-    curl_easy_setopt(c, CURLOPT_MAXREDIRS, r.options.max_redirs)
+        c_header_callback = @cfunction(header_callback, Csize_t, (Ptr{UInt8}, Csize_t, Csize_t, Ptr{Cvoid}))
+        curl_easy_setopt(c, CURLOPT_HEADERFUNCTION, c_header_callback)
+        curl_easy_setopt(c, CURLOPT_HEADERDATA, pointer_from_objref(r.response_context))
+        curl_easy_setopt(c, CURLOPT_PRIVATE, pointer_from_objref(r.response_context))
 
-    # Set network interface and proxy settings
-    curl_easy_setopt(c, CURLOPT_PROXY, something(r.options.proxy, C_NULL))
-    curl_easy_setopt(c, CURLOPT_INTERFACE, something(r.options.interface, C_NULL))
-    curl_easy_setopt(c, CURLOPT_ACCEPT_ENCODING, something(r.options.accept_encoding, C_NULL))
-
-    # Set user credentials for authentication
-    curl_easy_setopt(c, CURLOPT_USERNAME, something(r.options.username, C_NULL))
-    curl_easy_setopt(c, CURLOPT_PASSWORD, something(r.options.password, C_NULL))
-
-    # Set HTTP version and method
-    curl_easy_setopt(c, CURLOPT_HTTP_VERSION, something(r.options.version, CURL_HTTP_VERSION_2TLS))
-
-    # Enable verbose mode for detailed debug output
-    curl_easy_setopt(c, CURLOPT_VERBOSE, r.options.verbose)
-
-    # Set HTTP headers
-    for (k, v) in r.headers
-        r.header_list_ptr = curl_slist_append(r.header_list_ptr, "$k: $v")
+        curl_multi_perform(c)
+    finally
+        r.response_context.version = get_http_version(c)
+        r.response_context.status = get_http_response_status(c)
+        r.response_context.total_time = get_total_time(c)
+        curl_multi_remove_handle(c)
+        curl_easy_reset(c)
     end
-    curl_easy_setopt(c, CURLOPT_HTTPHEADER, r.header_list_ptr)
-
-    # Configure HTTP method
-    if r.method == "GET"
-        curl_easy_setopt(c, CURLOPT_HTTPGET, 1)
-    elseif r.method == "HEAD"
-        curl_easy_setopt(c, CURLOPT_NOBODY, 1)
-    elseif r.method == "POST"
-        curl_easy_setopt(c, CURLOPT_POST, 1)
-        curl_easy_setopt(c, CURLOPT_POSTFIELDSIZE, length(r.body))
-        curl_easy_setopt(c, CURLOPT_COPYPOSTFIELDS, pointer(r.body))
-    elseif r.method == "PUT" || r.method == "PATCH"
-        curl_easy_setopt(c, CURLOPT_POSTFIELDS, r.body)
-        curl_easy_setopt(c, CURLOPT_POSTFIELDSIZE, length(r.body))
-        curl_easy_setopt(c, CURLOPT_CUSTOMREQUEST, r.method)
-    elseif r.method == "DELETE"
-        curl_easy_setopt(c, CURLOPT_CUSTOMREQUEST, r.method)
-    end
-
-    # Setup callbacks for response handling
-    c_write_callback = @cfunction(write_callback, Csize_t, (Ptr{UInt8}, Csize_t, Csize_t, Ptr{Cvoid}))
-    curl_easy_setopt(c, CURLOPT_WRITEFUNCTION, c_write_callback)
-    curl_easy_setopt(c, CURLOPT_WRITEDATA, pointer_from_objref(r.response))
-
-    c_header_callback = @cfunction(header_callback, Csize_t, (Ptr{UInt8}, Csize_t, Csize_t, Ptr{Cvoid}))
-    curl_easy_setopt(c, CURLOPT_HEADERFUNCTION, c_header_callback)
-    curl_easy_setopt(c, CURLOPT_HEADERDATA, pointer_from_objref(r.response))
-
-    # Perform the request
-    curl_easy_perform(c)
-
-    # Gather response details
-    r.response.version = get_http_version(c)
-    r.response.status = get_http_response_status(c)
-    r.response.total_time = get_total_time(c)
-
     return nothing
 end
 
@@ -443,6 +427,7 @@ function http_request(
     status_exception::Bool = true,
     retry::Int64 = 0,
     retry_delay::Real = 0.25,
+    f::Union{Function,Nothing} = nothing,
     options...,
 )::HTTPResponse
     with_retry(retry, retry_delay) do
@@ -453,11 +438,11 @@ function http_request(
             Vector{UInt8}(body),
             HTTPOptions(; options...),
             C_NULL,
-            HTTPResponse(),
+            CurlResponseContext(f),
         )
         try
             perform_request(client, req)
-            r = req.response
+            r = HTTPResponse(req.response_context)
             if status_exception && http_iserror(r)
                 throw(HTTPStatusError(r))
             end
@@ -469,7 +454,27 @@ function http_request(
 end
 
 function http_request(method::AbstractString, x...; kw...)
-    return curl_open(c -> http_request(c, method, x...; kw...))
+    return curl_session(c -> http_request(c, method, x...; kw...))
+end
+
+"""
+    http_open(f::Function, method::AbstractString, x...; kw...) -> HTTPResponse
+
+Send an HTTP request to `url` using as `method` one of `"GET"`, `"POST"`, etc. and process the response `stream::IOBuffer` using the function `f`.
+
+Keyword arguments `kw` is the same as in [`http_request`](@ref).
+
+## Examples
+```julia-repl
+response = http_open("GET", "http://httpbin.org/stream/10") do stream
+    println(String(read(stream)))
+end
+```
+"""
+function http_open(f::Function, method::AbstractString, x...; kw...)
+    return curl_session(
+        c -> http_request(c, method, x...; f = f, kw...)
+    )
 end
 
 """

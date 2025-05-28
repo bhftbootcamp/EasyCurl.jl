@@ -83,18 +83,18 @@
         @test curl_joinurl("http://example.com", "path?", "key=value") == "http://example.com/path?/key=value"
         @test curl_joinurl("http://example.com", "path?", "key=value", "more=info") == "http://example.com/path?/key=value/more=info"
     end
-end
 
-@testset "build_imap_url Function Tests" begin
-    @test EasyCurl.build_imap_url("imap://example.com", nothing, nothing) ==
-          "imap://example.com"
+    @testset "build_imap_url Function Tests" begin
+        @test EasyCurl.build_imap_url("imap://example.com", nothing, nothing) ==
+              "imap://example.com"
 
-    @test EasyCurl.build_imap_url("imap://example.com", "INBOX", nothing) ==
-          "imap://example.com/INBOX"
+        @test EasyCurl.build_imap_url("imap://example.com", "INBOX", nothing) ==
+              "imap://example.com/INBOX"
 
-    @test EasyCurl.build_imap_url("imap://example.com", nothing, "UIDVALIDITY=1234") ==
-          "imap://example.com;UIDVALIDITY=1234"
+        @test EasyCurl.build_imap_url("imap://example.com", nothing, "UIDVALIDITY=1234") ==
+              "imap://example.com;UIDVALIDITY=1234"
 
-    @test EasyCurl.build_imap_url("imap://example.com", "INBOX", "UIDVALIDITY=1234") ==
+        @test EasyCurl.build_imap_url("imap://example.com", "INBOX", "UIDVALIDITY=1234") ==
           "imap://example.com/INBOX;UIDVALIDITY=1234"
+    end
 end
