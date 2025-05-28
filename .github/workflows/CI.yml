@@ -32,6 +32,8 @@ jobs:
           - ubuntu-latest
         arch:
           - x64
+    env:
+      HTTPBIN_URL: http://localhost
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2
@@ -39,6 +41,19 @@ jobs:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
       - uses: julia-actions/cache@v2
+      - name: Start local httpbin
+        run: docker run -d -p 80:80 --name httpbin kennethreitz/httpbin
+      - name: Wait for httpbin to be ready
+        run: |
+          for i in {1..10}; do
+            if curl -s ${{ env.HTTPBIN_URL }}/get > /dev/null; then
+              echo "httpbin is up!"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "httpbin did not start in time" >&2
+          exit 1
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
       - uses: julia-actions/julia-processcoverage@v1

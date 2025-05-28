@@ -1,5 +1,7 @@
 #__ integration
 
+const HTTPBIN_URL = get(ENV, "HTTPBIN_URL", "http://httpbin.org")
+
 const query = Dict{String,Any}(
     "echo" => "你好嗎"
 )
@@ -16,17 +18,17 @@ const query = Dict{String,Any}(
 
     # Test for GET request
     @testset "GET request" begin
-        response = http_get("httpbin.org/get", query = query, read_timeout = 30)
+        response = http_get(joinpath(HTTPBIN_URL, "get"), query = query, read_timeout = 30)
         @test http_status(response) == 200
         body = parse_json(http_body(response))
         @test body["args"] == query
-        @test body["url"] == "http://httpbin.org/get?echo=你好嗎"
+        @test body["url"] == joinpath(HTTPBIN_URL, "get") * "?echo=你好嗎"
     end
 
     # Test for HEAD request
     @testset "HEAD request" begin
         response = http_head(
-            "httpbin.org/get",
+            joinpath(HTTPBIN_URL, "get"),
             headers = headers = [
                 "Content-Type" => "application/json"
             ],
@@ -40,7 +42,7 @@ const query = Dict{String,Any}(
     # Test for POST request
     @testset "POST request" begin
         response = http_post(
-            "httpbin.org/post",
+            joinpath(HTTPBIN_URL, "post"),
             headers = headers = [
                 "Content-Type" => "application/json"
             ],
@@ -56,7 +58,7 @@ const query = Dict{String,Any}(
     # Test for PUT request
     @testset "PUT request" begin
         response = http_put(
-            "httpbin.org/put",
+            joinpath(HTTPBIN_URL, "put"),
             headers = headers = [
                 "Content-Type" => "application/json"
             ],
@@ -72,7 +74,7 @@ const query = Dict{String,Any}(
     # Test for PATCH request
     @testset "PATCH request" begin
         response = http_patch(
-            "httpbin.org/patch",
+            joinpath(HTTPBIN_URL, "patch"),
             headers = headers = [
                 "Content-Type" => "application/json"
             ],
@@ -89,7 +91,7 @@ const query = Dict{String,Any}(
     # Test for DELETE request
     @testset "DELETE request" begin
         response = http_delete(
-            "httpbin.org/delete",
+            joinpath(HTTPBIN_URL, "delete"),
             headers = headers = [
                 "Content-Type" => "application/json"
             ],
@@ -97,6 +99,14 @@ const query = Dict{String,Any}(
             verbose = true,
         )
         @test http_status(response) == 200
+    end
+
+    @testset "HTTP status error" begin
+        @test_throws HTTPStatusError{400} http_get(
+            joinpath(HTTPBIN_URL, "status/400"),
+            read_timeout = 30,
+            verbose = true,
+        )
     end
 end
 
@@ -152,6 +162,37 @@ end
     @test http_body(response)                 == b"<h1>Hello</h1>\n"
     @test http_header(response, "User-Agent") == "EasyCurl.jl"
     @test http_header(response, "user-agent") == "EasyCurl.jl"
+    @test isnothing(http_header(response, "invalid-key"))
+    @test http_version(response) == CURL_HTTP_VERSION_1_1
+    @test http_total_time(response) > 0
+    @test http_headers(response) == [
+        "server" => "TestServer", 
+        "content-type" => "text/html; charset=utf-8", 
+        "user-agent" => "EasyCurl.jl"
+    ]
+    @test http_headers(response, "User-Agent") == ["EasyCurl.jl"]
+    @test curl_body(response) == b"<h1>Hello</h1>\n"
+    @test curl_total_time(response) > 0
 
     kill(server_procs, Base.SIGKILL)
+end
+
+@testset "Client reusing" begin
+    client = CurlClient()
+    @test isopen(client)
+
+    response = http_request(client, "GET", joinpath(HTTPBIN_URL, "get"), query = query)
+    @test http_status(response) == 200
+    body = parse_json(http_body(response))
+    @test body["args"] == query
+    @test body["url"] == joinpath(HTTPBIN_URL, "get")*"?echo=你好嗎"
+
+    response = http_request(client, "POST", joinpath(HTTPBIN_URL, "post"), query = query)
+    @test http_status(response) == 200
+    body = parse_json(http_body(response))
+    @test body["args"] == query
+    @test body["url"] == joinpath(HTTPBIN_URL, "post")*"?echo=你好嗎"
+
+    close(client)
+    @test !isopen(client)
 end

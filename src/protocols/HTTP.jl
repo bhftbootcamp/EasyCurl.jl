@@ -10,6 +10,7 @@ export http_request,
 
 export http_body,
     http_status,
+    http_version,
     http_headers,
     http_header,
     http_total_time,
@@ -79,6 +80,7 @@ http_headers(x::HTTPResponse) = x.headers
 curl_total_time(x::HTTPResponse) = http_total_time(x)
 curl_body(x::HTTPResponse) = http_body(x)
 
+# COV_EXCL_START
 function Base.show(io::IO, x::HTTPResponse)
     println(io, HTTPResponse)
     println(io, "\"\"\"")
@@ -97,6 +99,7 @@ function Base.show(io::IO, x::HTTPResponse)
         println(io, "    ", strip(String(v)))
     end
 end
+# COV_EXCL_STOP
 
 """
     http_iserror(x::HTTPResponse) -> Bool
@@ -274,9 +277,11 @@ struct HTTPStatusError{code} <: Exception
     end
 end
 
+# COV_EXCL_START
 function Base.showerror(io::IO, e::HTTPStatusError)
     print(io, "HTTPStatusError{", e.code, "}: ", e.message)
 end
+# COV_EXCL_STOP
 
 mutable struct HTTPRequest <: CurlRequest
     method::String

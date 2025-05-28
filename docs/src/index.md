@@ -163,3 +163,28 @@ When executing the `http_request` function with the `proxy` parameter, it will i
 julia> http_request("GET", "http://httpbin.org/get",
     proxy = "socks5://your_proxy_username:your_proxy_password@your_proxy_host:your_proxy_port")
 ```
+
+## Testing
+
+To run the tests, you need either a local httpbin (default) or an external service.
+
+**Option 1: Use an external httpbin service**
+
+By default, tests use `http://httpbin.org`. 
+You can override this by setting the `HTTPBIN_URL` environment variable.
+
+**Option 2: Run a local httpbin service with Docker**
+
+```sh
+# Start httpbin in Docker (Docker must be installed)
+docker run -d -p 80:80 --name httpbin kennethreitz/httpbin
+
+# Set environment variable to point to the local instance
+export HTTPBIN_URL=http://localhost
+
+# Run tests
+julia --project -e 'using Pkg; Pkg.test()'
+
+# Stop and remove the container after tests
+docker stop httpbin && docker rm httpbin
+```
