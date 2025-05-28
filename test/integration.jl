@@ -1,6 +1,6 @@
 #__ integration
 
-const HTTPBIN_URL = get(ENV, "HTTPBIN_URL", "http://localhost")
+const HTTPBIN_URL = get(ENV, "HTTPBIN_URL", "http://httpbin.org")
 const query = Dict{String,Any}(
     "echo" => "你好嗎"
 )

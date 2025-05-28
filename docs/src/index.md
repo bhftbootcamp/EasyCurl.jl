@@ -168,25 +168,19 @@ julia> http_request("GET", "http://httpbin.org/get",
 
 To run the tests, you need either a local httpbin (default) or an external service.
 
-**Option 1: Use an external http service for integration tests**
+**Option 1: Use an external httpbin service**
 
-You can specify the service address via the environment variable:
+By default, tests use `http://httpbin.org`. 
+You can override this by setting the `HTTPBIN_URL` environment variable.
 
-```shell
-export HTTPBIN_URL=http://httpbin.org
-```
-
-```julia
-] test
-```
-
-By default, tests use `http://localhost`.
-
-**Option 2: Add local httpbin service for integration tests**
+**Option 2: Run a local httpbin service with Docker**
 
 ```sh
 # Start httpbin in Docker (Docker must be installed)
 docker run -d -p 80:80 --name httpbin kennethreitz/httpbin
+
+# Set environment variable to point to the local instance
+export HTTPBIN_URL=http://localhost
 
 # Run tests
 julia --project -e 'using Pkg; Pkg.test()'
