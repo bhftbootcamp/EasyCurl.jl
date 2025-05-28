@@ -175,3 +175,23 @@ end
 
     kill(server_procs, Base.SIGKILL)
 end
+
+@testset "Client reusing" begin
+    client = CurlClient()
+    @test isopen(client)
+
+    response = http_request(client, "GET", joinpath(HTTPBIN_URL, "get"), query = query)
+    @test http_status(response) == 200
+    body = parse_json(http_body(response))
+    @test body["args"] == query
+    @test body["url"] == joinpath(HTTPBIN_URL, "get")*"?echo=你好嗎"
+
+    response = http_request(client, "POST", joinpath(HTTPBIN_URL, "post"), query = query)
+    @test http_status(response) == 200
+    body = parse_json(http_body(response))
+    @test body["args"] == query
+    @test body["url"] == joinpath(HTTPBIN_URL, "post")*"?echo=你好嗎"
+
+    close(client)
+    @test !isopen(client)
+end

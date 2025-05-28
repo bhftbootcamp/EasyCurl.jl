@@ -123,9 +123,11 @@ struct CurlError{code} <: Exception
     end
 end
 
+# COV_EXCL_START
 function Base.showerror(io::IO, e::CurlError)
     print(io, "CurlError{", e.code, "}: ", e.message)
 end
+# COV_EXCL_STOP
 
 function curl_easy_escape(c::CurlClient, str::AbstractString, len::Int)
     r = LibCURL.curl_easy_escape(c.curl_handle, str, len)
