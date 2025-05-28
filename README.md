@@ -168,5 +168,36 @@ julia> http_request("GET", "http://httpbin.org/get",
     proxy = "socks5://your_proxy_username:your_proxy_password@your_proxy_host:your_proxy_port")
 ```
 
+## Testing
+
+To run the tests, you need either a local httpbin (default) or an external service.
+
+**Option 1: Use an external http service for integration tests**
+
+You can specify the service address via the environment variable:
+
+```shell
+export HTTPBIN_URL=http://httpbin.org
+```
+
+```julia
+] test
+```
+
+By default, tests use `http://localhost`.
+
+**Option 2: Add local httpbin service for integration tests**
+
+```sh
+# Start httpbin in Docker (Docker must be installed)
+docker run -d -p 80:80 --name httpbin kennethreitz/httpbin
+
+# Run tests
+julia --project -e 'using Pkg; Pkg.test()'
+
+# Stop and remove the container after tests
+docker stop httpbin && docker rm httpbin
+```
+
 ## Contributing
 Contributions to EasyCurl are welcome! If you encounter a bug, have a feature request, or would like to contribute code, please open an issue or a pull request on GitHub.

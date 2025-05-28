@@ -1,5 +1,6 @@
 #__ integration
 
+const HTTPBIN_URL = get(ENV, "HTTPBIN_URL", "http://localhost")
 const query = Dict{String,Any}(
     "echo" => "你好嗎"
 )
@@ -16,17 +17,17 @@ const query = Dict{String,Any}(
 
     # Test for GET request
     @testset "GET request" begin
-        response = http_get("httpbin.org/get", query = query, read_timeout = 30)
+        response = http_get(joinpath(HTTPBIN_URL, "get"), query = query, read_timeout = 30)
         @test http_status(response) == 200
         body = parse_json(http_body(response))
         @test body["args"] == query
-        @test body["url"] == "http://httpbin.org/get?echo=你好嗎"
+        @test body["url"] == joinpath(HTTPBIN_URL, "get") * "?echo=你好嗎"
     end
 
     # Test for HEAD request
     @testset "HEAD request" begin
         response = http_head(
-            "httpbin.org/get",
+            joinpath(HTTPBIN_URL, "get"),
             headers = headers = [
                 "Content-Type" => "application/json"
             ],
@@ -40,7 +41,7 @@ const query = Dict{String,Any}(
     # Test for POST request
     @testset "POST request" begin
         response = http_post(
-            "httpbin.org/post",
+            joinpath(HTTPBIN_URL, "post"),
             headers = headers = [
                 "Content-Type" => "application/json"
             ],
@@ -56,7 +57,7 @@ const query = Dict{String,Any}(
     # Test for PUT request
     @testset "PUT request" begin
         response = http_put(
-            "httpbin.org/put",
+            joinpath(HTTPBIN_URL, "put"),
             headers = headers = [
                 "Content-Type" => "application/json"
             ],
@@ -72,7 +73,7 @@ const query = Dict{String,Any}(
     # Test for PATCH request
     @testset "PATCH request" begin
         response = http_patch(
-            "httpbin.org/patch",
+            joinpath(HTTPBIN_URL, "patch"),
             headers = headers = [
                 "Content-Type" => "application/json"
             ],
@@ -89,7 +90,7 @@ const query = Dict{String,Any}(
     # Test for DELETE request
     @testset "DELETE request" begin
         response = http_delete(
-            "httpbin.org/delete",
+            joinpath(HTTPBIN_URL, "delete"),
             headers = headers = [
                 "Content-Type" => "application/json"
             ],
