@@ -9,7 +9,7 @@ const query = Dict{String,Any}(
 @testset "HTTP Requests" begin
     # Test for nonexistent host error
     @testset "Nonexistent host error" begin
-        @test_throws CurlError{6} http_get(
+        @test_throws CurlEasyError{6} http_get(
             "https://bar-foo.foo/get",
             read_timeout = 30,
             verbose = true,
@@ -142,7 +142,7 @@ end
     server_procs = open(`$(Base.julia_cmd()) -e $server_setup`, "w+")
     port_str = readline(server_procs)
 
-    @test_throws CurlError{45} http_get(
+    @test_throws CurlEasyError{45} http_get(
         "http://127.0.0.1:$(port_str)",
         interface = "10.10.10.10",
         read_timeout = 30,
@@ -175,6 +175,29 @@ end
     @test curl_total_time(response) > 0
 
     kill(server_procs, Base.SIGKILL)
+end
+
+@testset "Stream" begin
+    chunks = Vector{UInt8}[]
+    response = http_open("GET", joinpath(HTTPBIN_URL, "stream/3"), query = query) do stream
+        while !eof(stream)
+            push!(chunks, read(stream, 280))
+        end
+    end
+    @test http_status(response) == 200
+    for chunk in chunks
+        body = parse_json(chunk)
+        @test body["args"] == query
+        @test body["url"] == joinpath(HTTPBIN_URL, "stream/3?echo=你好嗎")
+    end
+
+    body = UInt8[]
+    response = http_open("GET", joinpath(HTTPBIN_URL, "get"), query = query) do stream
+        append!(body, read(stream))
+    end
+    body_dict = parse_json(body)
+    @test body_dict["args"] == query
+    @test body_dict["url"] == joinpath(HTTPBIN_URL, "get?echo=你好嗎")
 end
 
 @testset "Client reusing" begin

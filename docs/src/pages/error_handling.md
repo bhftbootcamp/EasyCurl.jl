@@ -1,9 +1,11 @@
 # Error handling
 
-If the problem occurs on the EasyCurl side then [`CurlError`](@ref) exception will be thrown.
+If the problem occurs on the EasyCurl side then [`AbstractCurlError`](@ref) exception will be thrown.
 
 ```@docs
-CurlError
+AbstractCurlError
+CurlEasyError
+CurlMultiError
 ```
 
 Or, if the problem was caused by HHTP, a [`HTTPStatusError`](@ref) exception will be thrown.
@@ -26,7 +28,7 @@ try
     # If the request is successful, you can process the response here
     # ...
 catch e
-    if isa(e, CurlError)
+    if isa(e, CurlEasyError)
         if e.code == EasyCurl.CURLE_COULDNT_CONNECT
             # Handle the case where the connection to the server could not be made
         elseif e.code == EasyCurl.CURLE_OPERATION_TIMEDOUT
@@ -51,9 +53,9 @@ try
     # If the request is successful, you can process the response here
     # ...
 catch e
-    if isa(e, CurlError{EasyCurl.CURLE_COULDNT_CONNECT})
+    if isa(e, CurlEasyError{EasyCurl.CURLE_COULDNT_CONNECT})
         # Handle the case where the connection to the server could not be made
-    elseif isa(e, CurlError{EasyCurl.CURLE_OPERATION_TIMEDOUT})
+    elseif isa(e, CurlEasyError{EasyCurl.CURLE_OPERATION_TIMEDOUT})
         # Handle the case where the operation timed out
     elseif isa(e, HTTPStatusError{400})
         # Handle a 400 Bad Request error specifically

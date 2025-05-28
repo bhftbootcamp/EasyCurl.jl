@@ -1,9 +1,11 @@
 module EasyCurl
 
 export CurlClient,
-    CurlError
+    AbstractCurlError,
+    CurlEasyError,
+    CurlMultiError
 
-export curl_open,
+export curl_session,
     curl_joinurl
 
 export curl_total_time,
@@ -28,29 +30,109 @@ function curl_total_time end
 function curl_body end
 
 """
+    AbstractCurlError <: Exception
+
+Abstract base type for exceptions related to LibCURL errors.
+
+Concrete subtypes:
+- `CurlEasyError`: Errors from the libcurl easy interface.
+- `CurlMultiError`: Errors from the libcurl multi interface.
+
+All subtypes provide:
+- `code::Int`: Numeric libcurl error code.
+- `message::String`: Human-readable libcurl error message.
+
+See [libcurl error codes](https://curl.se/libcurl/c/libcurl-errors.html) for more details.
+"""
+abstract type AbstractCurlError <: Exception end
+
+# COV_EXCL_START
+function Base.showerror(io::IO, e::AbstractCurlError)
+    print(io, nameof(typeof(e)), "{", e.code, "}: ", e.message)
+end
+# COV_EXCL_STOP
+
+"""
+    CurlEasyError <: AbstractCurlError
+
+Represents an error from a libcurl easy interface call.
+
+## Fields
+- `code::UInt32`: The libcurl error code.
+- `message::String`: The corresponding error message from libcurl.
+
+## Examples
+
+```julia-repl
+julia> curl_easy_setopt(c, 1, 1)
+ERROR: CurlEasyError{48}: An unknown option was passed in to libcurl
+```
+"""
+struct CurlEasyError{code} <: AbstractCurlError
+    code::Int
+    message::String
+
+    function CurlEasyError(c::Integer)
+        new{Int(c)}(c, unsafe_string(LibCURL.curl_easy_strerror(UInt32(c))))
+    end
+end
+
+"""
+    CurlMultiError <: AbstractCurlError
+
+Represents an error from a libcurl multi interface call.
+
+## Fields
+- `code::Int`: The libcurl multi error code.
+- `message::String`: The corresponding error message from libcurl.
+
+## Examples
+
+```julia-repl
+julia> curl_multi_add_handle(c)
+ERROR: CurlMultiError{1}: Invalid multi handle
+```
+"""
+struct CurlMultiError{code} <: AbstractCurlError
+    code::Int
+    message::String
+
+    function CurlMultiError(c::Integer)
+        new{Int(c)}(c, unsafe_string(LibCURL.curl_multi_strerror(UInt32(c))))
+    end
+end
+
+"""
     CurlClient
 
 Represents a client for making HTTP requests using libcurl. Allows for connection reuse.
 
 ## Fields
-- `curl_handle::Ptr{Cvoid}`: The libcurl easy handle.
+- `easy_handle::Ptr{Cvoid}`: The libcurl easy handle.
+- `multi_handle::Ptr{Cvoid}`: The libcurl multi handle.
 """
 mutable struct CurlClient
-    curl_handle::Ptr{Cvoid}
+    easy_handle::Ptr{Cvoid}
+    multi_handle::Ptr{Cvoid}
 
     function CurlClient()
-        handle = LibCURL.curl_easy_init()
-        handle != C_NULL || throw(CurlError(CURLE_FAILED_INIT))
-        c = new(handle)
+        easy_handle = LibCURL.curl_easy_init()
+        easy_handle != C_NULL || throw(CurlEasyError(CURLE_FAILED_INIT))
+        multi_handle = LibCURL.curl_multi_init()
+        multi_handle != C_NULL || throw(CurlMultiError(CURLM_BAD_HANDLE))
+        c = new(easy_handle,multi_handle)
         finalizer(close, c)
         return c
     end
 end
 
-function curl_easy_cleanup(c::CurlClient)
-    c.curl_handle == C_NULL && return nothing
-    LibCURL.curl_easy_cleanup(c.curl_handle)
-    c.curl_handle = C_NULL
+function curl_cleanup(c::CurlClient)
+    c.easy_handle == C_NULL && return nothing
+    LibCURL.curl_easy_cleanup(c.easy_handle)
+    c.easy_handle = C_NULL
+    c.multi_handle == C_NULL && return nothing
+    LibCURL.curl_multi_cleanup(c.multi_handle)
+    c.multi_handle = C_NULL
     return nothing
 end
 
@@ -59,17 +141,17 @@ end
 
 Closes the `client` instance by cleaning up the associated libcurl easy handle.
 """
-Base.close(c::CurlClient) = curl_easy_cleanup(c)
+Base.close(c::CurlClient) = curl_cleanup(c)
 
 """
     isopen(client::CurlClient)
 
 Checks if the `client` instance is open by verifying the internal libcurl handle.
 """
-Base.isopen(c::CurlClient) = c.curl_handle != C_NULL
+Base.isopen(c::CurlClient) = c.multi_handle != C_NULL
 
 """
-    curl_open(f::Function, x...; kw...)
+    curl_session(f::Function, x...; kw...)
 
 A helper function for executing a batch of curl requests, using the same client.
 Optionally configure the client (see [`CurlClient`](@ref) for more details).
@@ -77,14 +159,14 @@ Optionally configure the client (see [`CurlClient`](@ref) for more details).
 ## Examples
 
 ```julia-repl
-julia> curl_open() do client
+julia> curl_session() do client
            response = http_request(client, "GET", "http://httpbin.org/get")
            http_status(response)
        end
 200
 ```
 """
-function curl_open(f::Function, x...; kw...)
+function curl_session(f::Function, x...; kw...)
     c = CurlClient(x...; kw...)
     try
         f(c)
@@ -93,67 +175,81 @@ function curl_open(f::Function, x...; kw...)
     end
 end
 
-"""
-    CurlError{code} <: Exception
-
-Type wrapping LibCURL error codes. Returned when a libcurl error occurs.
-
-## Fields
-- `code::UInt64`: The LibCURL error code (see [libcurl error codes](https://curl.se/libcurl/c/libcurl-errors.html)).
-- `message::String`: The error message.
-
-## Examples
-
-```julia-repl
-julia> http_request("GET", "http://httpbin.org/status/400", interface = "9.9.9.9")
-ERROR: CurlError{45}: Failed binding local connection end
-[...]
-
-julia> http_request("GET", "http://httpbin.org/status/400", interface = "")
-ERROR: CurlError{7}: Couldn't connect to server
-[...]
-```
-"""
-struct CurlError{code} <: Exception
-    code::UInt64
-    message::String
-
-    function CurlError(code::UInt32)
-        return new{Int(code)}(code, unsafe_string(LibCURL.curl_easy_strerror(code)))
-    end
-end
-
-# COV_EXCL_START
-function Base.showerror(io::IO, e::CurlError)
-    print(io, "CurlError{", e.code, "}: ", e.message)
-end
-# COV_EXCL_STOP
-
 function curl_easy_escape(c::CurlClient, str::AbstractString, len::Int)
-    r = LibCURL.curl_easy_escape(c.curl_handle, str, len)
-    r == C_NULL && throw(CurlError(CURLE_FAILED_INIT))
+    r = LibCURL.curl_easy_escape(c.easy_handle, str, len)
+    r == C_NULL && throw(CurlEasyError(CURLE_FAILED_INIT))
     return r
 end
 
 function curl_easy_unescape(c::CurlClient, url::AbstractString, inlength::Int, outlength::Ptr)
-    r = LibCURL.curl_easy_unescape(c.curl_handle, url, inlength, outlength)
-    r == C_NULL && throw(CurlError(CURLE_FAILED_INIT))
+    r = LibCURL.curl_easy_unescape(c.easy_handle, url, inlength, outlength)
+    r == C_NULL && throw(CurlEasyError(CURLE_FAILED_INIT))
     return r
 end
 
 function curl_easy_setopt(c::CurlClient, option, value)
-    r = LibCURL.curl_easy_setopt(c.curl_handle, option, value)
-    r == CURLE_OK || throw(CurlError(r))
+    r = LibCURL.curl_easy_setopt(c.easy_handle, option, value)
+    r == CURLE_OK || throw(CurlEasyError(r))
+    return r
 end
 
 function curl_easy_getinfo(c::CurlClient, info::CURLINFO, ptr::Ref)
-    r = LibCURL.curl_easy_getinfo(c.curl_handle, info, ptr)
-    r == CURLE_OK || throw(CurlError(r))
+    r = LibCURL.curl_easy_getinfo(c.easy_handle, info, ptr)
+    r == CURLE_OK || throw(CurlEasyError(r))
+    return r
+end
+
+function curl_easy_reset(c::CurlClient)
+    LibCURL.curl_easy_reset(c.easy_handle)
 end
 
 function curl_easy_perform(c::CurlClient)
-    r = LibCURL.curl_easy_perform(c.curl_handle)
-    r == CURLE_OK || throw(CurlError(r))
+    r = LibCURL.curl_easy_perform(c.easy_handle)
+    r == CURLE_OK || throw(CurlEasyError(r))
+    return r
+end
+
+function curl_multi_add_handle(c::CurlClient)
+    r = LibCURL.curl_multi_add_handle(c.multi_handle, c.easy_handle)
+    r == CURLM_OK || throw(CurlMultiError(r))
+    return r
+end
+
+function curl_multi_remove_handle(c::CurlClient)
+    r = LibCURL.curl_multi_remove_handle(c.multi_handle, c.easy_handle)
+    r == CURLM_OK || throw(CurlMultiError(r))
+    return r
+end
+
+struct CurlMsg
+    msg::CURLMSG
+    easy::Ptr{Cvoid}
+    code::CURLcode
+end
+
+function curl_multi_perform(c::CurlClient)
+    r_ctx = get_private_data(c, CurlResponseContext)
+    still_running = Ref{Cint}(1)
+    while still_running[] > 0
+        mc = LibCURL.curl_multi_perform(c.multi_handle, still_running)
+        if mc == CURLM_OK
+            mc = curl_multi_wait(c.multi_handle, C_NULL, 0, 1000, Ref{Cint}(0))
+        end
+        if mc != CURLM_OK
+            throw(CurlMultiError(mc))
+        end
+        r_ctx.error !== nothing && throw(r_ctx.error)
+    end
+    while true
+        p = LibCURL.curl_multi_info_read(c.multi_handle, Ref{Cint}(0))
+        p == C_NULL && break
+        m = unsafe_load(convert(Ptr{CurlMsg}, p))
+        if m.msg == CURLMSG_DONE
+            if m.code != CURLE_OK
+                throw(CurlEasyError(m.code))
+            end
+        end
+    end
 end
 
 include("Utils.jl")
@@ -177,21 +273,48 @@ function get_total_time(c::CurlClient)::Float64
     return time_ref[]
 end
 
+function get_private_data(c::CurlClient, ::Type{T})::T where {T}
+    private_ref = Ref{T}()
+    curl_easy_getinfo(c, CURLINFO_PRIVATE, private_ref)
+    return private_ref[]
+end
+
+mutable struct CurlResponseContext
+    status::Int
+    version::Int
+    total_time::Float64
+    stream::IOBuffer
+    headers::Vector{Pair{String,String}}
+    on_data::Union{Nothing,Function}
+    error::Union{Nothing,Exception}
+
+    function CurlResponseContext(on_data::Union{Nothing,Function})
+        return new(0, 0, 0.0, IOBuffer(; append = true), Vector{Pair{String,String}}(), on_data, nothing)
+    end
+end
+
 function write_callback(buf::Ptr{UInt8}, s::Csize_t, n::Csize_t, p_ctxt::Ptr{Cvoid})
-    r::CurlResponse = unsafe_pointer_to_objref(p_ctxt)
+    r_ctx::CurlResponseContext = unsafe_pointer_to_objref(p_ctxt)
     sz = s * n
     data = Array{UInt8}(undef, sz)
     ccall(:memcpy, Ptr{Cvoid}, (Ptr{Cvoid}, Ptr{Cvoid}, UInt64), data, buf, sz)
-    append!(r.body, data)
+    try
+        write(r_ctx.stream, data)
+        if r_ctx.on_data !== nothing
+            r_ctx.on_data(r_ctx.stream)
+        end
+    catch e
+        r_ctx.error = e
+    end
     return sz
 end
 
 function header_callback(buf::Ptr{UInt8}, s::Csize_t, n::Csize_t, p_ctxt::Ptr{Cvoid})
-    r::CurlResponse = unsafe_pointer_to_objref(p_ctxt)
+    r_ctx::CurlResponseContext = unsafe_pointer_to_objref(p_ctxt)
     sz = s * n
     header = unsafe_string(buf, sz)
     value = split_header(header)
-    value !== nothing && push!(r.headers, value)
+    value !== nothing && push!(r_ctx.headers, value)
     return sz
 end
 

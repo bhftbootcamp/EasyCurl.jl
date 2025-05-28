@@ -10,6 +10,7 @@ HTTPOptions
 ## Methods
 
 ```@docs
+http_open
 http_request
 http_get
 http_head
