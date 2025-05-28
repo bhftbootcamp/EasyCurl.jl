@@ -99,6 +99,14 @@ const query = Dict{String,Any}(
         )
         @test http_status(response) == 200
     end
+
+    @testset "HTTP status error" begin
+        @test_throws HTTPStatusError{400} http_get(
+            joinpath(HTTPBIN_URL, "status/400"),
+            read_timeout = 30,
+            verbose = true,
+        )
+    end
 end
 
 @testset "Optional interface" begin
@@ -153,6 +161,17 @@ end
     @test http_body(response)                 == b"<h1>Hello</h1>\n"
     @test http_header(response, "User-Agent") == "EasyCurl.jl"
     @test http_header(response, "user-agent") == "EasyCurl.jl"
+    @test isnothing(http_header(response, "invalid-key"))
+    @test http_version(response) == CURL_HTTP_VERSION_1_1
+    @test http_total_time(response) > 0
+    @test http_headers(response) == [
+        "server" => "TestServer", 
+        "content-type" => "text/html; charset=utf-8", 
+        "user-agent" => "EasyCurl.jl"
+    ]
+    @test http_headers(response, "User-Agent") == ["EasyCurl.jl"]
+    @test curl_body(response) == b"<h1>Hello</h1>\n"
+    @test curl_total_time(response) > 0
 
     kill(server_procs, Base.SIGKILL)
 end

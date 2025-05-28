@@ -10,6 +10,7 @@ export http_request,
 
 export http_body,
     http_status,
+    http_version,
     http_headers,
     http_header,
     http_total_time,
