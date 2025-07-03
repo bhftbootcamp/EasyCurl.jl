@@ -61,7 +61,7 @@ Represents options for configuring an IMAP request.
 | `verbose::Bool` | Enables detailed output from Curl (useful for debugging). | `false` |
 | `proxy::Union{String,Nothing}` | Proxy server URL, or `nothing` to bypass proxy settings. | `nothing` |
 | `interface::Union{String,Nothing}` | Specifies a particular network interface to use for the request, or `nothing` to use the default. | `nothing` |
-| `buffer_size::Int` | Size of the internal buffer in bytes. | `128 * 1024` |
+| `buffer_size::Int` | Size of the internal buffer in bytes (maximum allowed is 10 MB). | `128 * 1024` |
 """
 struct IMAPOptions <: CurlOptions
     read_timeout::Int
