@@ -54,13 +54,14 @@ Represents options for configuring an IMAP request.
 ## Fields
 | Name | Description | Default |
 |:-----|:------------|:--------|
-| `read_timeout::Real` | Timeout in seconds for reading the response. | `30` |
+| `read_timeout::Real` | Timeout in seconds for reading the response. | `60` |
 | `connect_timeout::Real` | Maximum time in seconds that you allow the connection phase to take. | `10` |
 | `ssl_verifyhost::Bool` | Enables SSL certificate's host verification. | `true` |
 | `ssl_verifypeer::Bool` | Enables the SSL certificate verification. | `true` |
 | `verbose::Bool` | Enables detailed output from Curl (useful for debugging). | `false` |
 | `proxy::Union{String,Nothing}` | Proxy server URL, or `nothing` to bypass proxy settings. | `nothing` |
 | `interface::Union{String,Nothing}` | Specifies a particular network interface to use for the request, or `nothing` to use the default. | `nothing` |
+| `buffer_size::Int` | Size of the internal buffer in bytes (maximum allowed is 10 MB). | `128 * 1024` |
 """
 struct IMAPOptions <: CurlOptions
     read_timeout::Int
@@ -70,15 +71,17 @@ struct IMAPOptions <: CurlOptions
     verbose::Bool
     proxy::Union{String,Nothing}
     interface::Union{String,Nothing}
+    buffer_size::Int
 
     function IMAPOptions(;
-        read_timeout = 30,
+        read_timeout = 60,
         connect_timeout = 10,
         ssl_verifyhost = true,
         ssl_verifypeer = true,
         verbose = false,
         proxy = nothing,
         interface = nothing,
+        buffer_size = 128 * 1024,
     )
         return new(
             read_timeout,
@@ -88,6 +91,7 @@ struct IMAPOptions <: CurlOptions
             verbose,
             proxy,
             interface,
+            buffer_size,
         )
     end
 end
@@ -117,6 +121,7 @@ function perform_request(c::CurlClient, r::IMAPRequest)
         curl_easy_setopt(c, CURLOPT_INTERFACE, something(r.options.interface, C_NULL))
         curl_easy_setopt(c, CURLOPT_PROXY, something(r.options.proxy, C_NULL))
         curl_easy_setopt(c, CURLOPT_VERBOSE, r.options.verbose)
+        curl_easy_setopt(c, CURLOPT_BUFFERSIZE, r.options.buffer_size)
 
         c_write_callback = @cfunction(write_callback, Csize_t, (Ptr{UInt8}, Csize_t, Csize_t, Ptr{Cvoid}))
         curl_easy_setopt(c, CURLOPT_WRITEFUNCTION, c_write_callback)
@@ -156,6 +161,7 @@ julia> response = imap_request(
            "your_imap_password",
            mailbox = "INBOX",
            command = "SEARCH SINCE 09-Sep-2024",
+           buffer_size = 128 * 1024,
        );
 
 julia> imap_body(response) |> String |> print
@@ -174,6 +180,7 @@ function imap_request(
     command = nothing,
     retry::Int64 = 0,
     retry_delay::Real = 0.25,
+    
     options...,
 )::IMAPResponse
     with_retry(retry, retry_delay) do

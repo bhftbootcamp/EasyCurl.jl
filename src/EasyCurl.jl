@@ -230,16 +230,18 @@ end
 function curl_multi_perform(c::CurlClient)
     r_ctx = get_private_data(c, CurlResponseContext)
     still_running = Ref{Cint}(1)
+
     while still_running[] > 0
         mc = LibCURL.curl_multi_perform(c.multi_handle, still_running)
         if mc == CURLM_OK
-            mc = curl_multi_wait(c.multi_handle, C_NULL, 0, 1000, Ref{Cint}(0))
+            mc = curl_multi_wait(c.multi_handle, C_NULL, 0, 100, Ref{Cint}(0))
         end
         if mc != CURLM_OK
             throw(CurlMultiError(mc))
         end
         isnothing(r_ctx.error) || throw(r_ctx.error)
     end
+
     while true
         p = LibCURL.curl_multi_info_read(c.multi_handle, Ref{Cint}(0))
         p == C_NULL && break
@@ -296,10 +298,14 @@ end
 function write_callback(buf::Ptr{UInt8}, s::Csize_t, n::Csize_t, p_ctxt::Ptr{Cvoid})
     r_ctx::CurlResponseContext = unsafe_pointer_to_objref(p_ctxt)
     sz = s * n
+    if sz == 0 || buf == C_NULL
+        return sz
+    end
     data = Array{UInt8}(undef, sz)
     unsafe_copyto!(pointer(data), buf, sz)
     try
         write(r_ctx.stream, data)
+        flush(r_ctx.stream)
         isnothing(r_ctx.on_data) || r_ctx.on_data(r_ctx.stream)
     catch e
         r_ctx.error = e
