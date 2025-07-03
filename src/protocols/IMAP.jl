@@ -150,7 +150,6 @@ Send a `url` IMAP request using `username` and `password`, then return a [`IMAPR
 | `path::Union{Nothing,String}` | The specific path or criteria of the query. | `nothing` |
 | `retry::Int64` | Number of retries. | `0` |
 | `retry_delay::Real` | Delay after failed request. | `0.25` |
-| `buffer_size::Int` | Size of the internal buffer in bytes. | `128 * 1024` |
 | `options...` | Another IMAP request [options](@ref IMAPOptions). |  |
 
 ## Examples
@@ -181,7 +180,7 @@ function imap_request(
     command = nothing,
     retry::Int64 = 0,
     retry_delay::Real = 0.25,
-    buffer_size::Int = 128 * 1024,
+    
     options...,
 )::IMAPResponse
     with_retry(retry, retry_delay) do
@@ -190,7 +189,7 @@ function imap_request(
             username,
             password,
             command,
-            IMAPOptions(; buffer_size = buffer_size, options...),
+            IMAPOptions(; options...),
             CurlResponseContext(nothing),
         )
         perform_request(client, req)
