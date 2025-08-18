@@ -49,10 +49,7 @@ abstract type AbstractCurlError <: Exception end
 # COV_EXCL_START
 function Base.showerror(io::IO, e::AbstractCurlError)
     if !isempty(e.libCurl_message)
-        try
-            print(io, nameof(typeof(e)), "{", e.code, "}: ", e.libCurl_message)
-        catch
-        end
+        print(io, nameof(typeof(e)), "{", e.code, "}: ", e.libCurl_message)
     else
         print(io, nameof(typeof(e)), "{", e.code, "}: ", e.message)
     end
