@@ -48,9 +48,23 @@ abstract type AbstractCurlError <: Exception end
 
 # COV_EXCL_START
 function Base.showerror(io::IO, e::AbstractCurlError)
-    print(io, nameof(typeof(e)), "{", e.code, "}: ", e.message)
+    if !isempty(e.libcurl_message)
+        print(io, nameof(typeof(e)), "{", e.code, "}: ", e.libcurl_message)
+    else
+        print(io, nameof(typeof(e)), "{", e.code, "}: ", e.message)
+    end
 end
 # COV_EXCL_STOP
+
+@inline function _errorbuffer_msg(buf::Union{Nothing,Vector{UInt8}})::String
+    if buf === nothing || buf[1] == 0x00
+        return ""
+    end
+    n0  = findfirst(==(0x00), buf)
+    raw = String(n0 === nothing ? buf : @view buf[1:n0-1])
+    msg = chomp(strip(raw))
+    return msg
+end
 
 """
     CurlEasyError <: AbstractCurlError
@@ -71,9 +85,12 @@ ERROR: CurlEasyError{48}: An unknown option was passed in to libcurl
 struct CurlEasyError{code} <: AbstractCurlError
     code::Int
     message::String
+    libcurl_message::String
 
-    function CurlEasyError(c::Integer)
-        new{Int(c)}(c, unsafe_string(LibCURL.curl_easy_strerror(UInt32(c))))
+    function CurlEasyError(c::Integer, curl)
+        msg = unsafe_string(LibCURL.curl_easy_strerror(UInt32(c)))
+        buf = _errorbuffer_msg(curl.error_buffer)
+        return new{Int(c)}(Int(c), msg, buf)
     end
 end
 
@@ -96,11 +113,16 @@ ERROR: CurlMultiError{1}: Invalid multi handle
 struct CurlMultiError{code} <: AbstractCurlError
     code::Int
     message::String
+    libcurl_message::String
 
-    function CurlMultiError(c::Integer)
-        new{Int(c)}(c, unsafe_string(LibCURL.curl_multi_strerror(UInt32(c))))
+    function CurlMultiError(c::Integer, curl)
+        msg = unsafe_string(LibCURL.curl_multi_strerror(UInt32(c)))
+        buf = _errorbuffer_msg(curl.error_buffer)
+        return new{Int(c)}(Int(c), msg, buf)
     end
 end
+
+
 
 """
     CurlClient
@@ -114,13 +136,27 @@ Represents a client for making HTTP requests using libcurl. Allows for connectio
 mutable struct CurlClient
     easy_handle::Ptr{Cvoid}
     multi_handle::Ptr{Cvoid}
+    error_buffer::Vector{UInt8}
 
     function CurlClient()
         easy_handle = LibCURL.curl_easy_init()
-        easy_handle != C_NULL || throw(CurlEasyError(CURLE_FAILED_INIT))
+        easy_handle != C_NULL || begin 
+            throw(ArgumentError("curl_easy_init failed"))
+        end
         multi_handle = LibCURL.curl_multi_init()
-        multi_handle != C_NULL || throw(CurlMultiError(CURLM_BAD_HANDLE))
-        c = new(easy_handle,multi_handle)
+        multi_handle != C_NULL || begin 
+            LibCURL.curl_easy_cleanup(easy_handle)
+            throw(ArgumentError("curl_multi_init failed"))
+        end
+        buf = zeros(UInt8, LibCURL.CURL_ERROR_SIZE)
+        r = LibCURL.curl_easy_setopt(easy_handle, CURLOPT_ERRORBUFFER, pointer(buf))
+        r == CURLE_OK || begin
+            LibCURL.curl_multi_cleanup(multi_handle)
+            LibCURL.curl_easy_cleanup(easy_handle)
+            throw(ArgumentError("failed to set CURLOPT_ERRORBUFFER"))
+        end
+
+        c = new(easy_handle,multi_handle, buf)
         finalizer(close, c)
         return c
     end
@@ -177,47 +213,49 @@ end
 
 function curl_easy_escape(c::CurlClient, str::AbstractString, len::Int)
     r = LibCURL.curl_easy_escape(c.easy_handle, str, len)
-    r == C_NULL && throw(CurlEasyError(CURLE_FAILED_INIT))
+    r == C_NULL && throw(CurlEasyError(CURLE_FAILED_INIT, c))
     return r
 end
 
 function curl_easy_unescape(c::CurlClient, url::AbstractString, inlength::Int, outlength::Ptr)
     r = LibCURL.curl_easy_unescape(c.easy_handle, url, inlength, outlength)
-    r == C_NULL && throw(CurlEasyError(CURLE_FAILED_INIT))
+    r == C_NULL && throw(CurlEasyError(CURLE_FAILED_INIT, c))
     return r
 end
 
 function curl_easy_setopt(c::CurlClient, option, value)
     r = LibCURL.curl_easy_setopt(c.easy_handle, option, value)
-    r == CURLE_OK || throw(CurlEasyError(r))
+    r == CURLE_OK || throw(CurlEasyError(r, c))
     return r
 end
 
 function curl_easy_getinfo(c::CurlClient, info::CURLINFO, ptr::Ref)
     r = LibCURL.curl_easy_getinfo(c.easy_handle, info, ptr)
-    r == CURLE_OK || throw(CurlEasyError(r))
+    r == CURLE_OK || throw(CurlEasyError(r, c))
     return r
 end
 
 function curl_easy_reset(c::CurlClient)
     LibCURL.curl_easy_reset(c.easy_handle)
+    fill!(c.error_buffer, 0x00)
+    LibCURL.curl_easy_setopt(c.easy_handle, CURLOPT_ERRORBUFFER, pointer(c.error_buffer))
 end
 
 function curl_easy_perform(c::CurlClient)
     r = LibCURL.curl_easy_perform(c.easy_handle)
-    r == CURLE_OK || throw(CurlEasyError(r))
+    r == CURLE_OK || throw(CurlEasyError(r, c))
     return r
 end
 
 function curl_multi_add_handle(c::CurlClient)
     r = LibCURL.curl_multi_add_handle(c.multi_handle, c.easy_handle)
-    r == CURLM_OK || throw(CurlMultiError(r))
+    r == CURLM_OK || throw(CurlMultiError(r, c))
     return r
 end
 
 function curl_multi_remove_handle(c::CurlClient)
     r = LibCURL.curl_multi_remove_handle(c.multi_handle, c.easy_handle)
-    r == CURLM_OK || throw(CurlMultiError(r))
+    r == CURLM_OK || throw(CurlMultiError(r, c))
     return r
 end
 
@@ -237,7 +275,7 @@ function curl_multi_perform(c::CurlClient)
             mc = curl_multi_wait(c.multi_handle, C_NULL, 0, 100, Ref{Cint}(0))
         end
         if mc != CURLM_OK
-            throw(CurlMultiError(mc))
+            throw(CurlMultiError(mc, c))
         end
         isnothing(r_ctx.error) || throw(r_ctx.error)
     end
@@ -248,7 +286,7 @@ function curl_multi_perform(c::CurlClient)
         m = unsafe_load(convert(Ptr{CurlMsg}, p))
         if m.msg == CURLMSG_DONE
             if m.code != CURLE_OK
-                throw(CurlEasyError(m.code))
+                throw(CurlEasyError(m.code, c))
             end
         end
     end
@@ -279,6 +317,7 @@ function get_private_data(c::CurlClient, ::Type{T})::T where {T}
     private_ref = Ref{T}()
     curl_easy_getinfo(c, CURLINFO_PRIVATE, private_ref)
     return private_ref[]
+    # return unsafe_pointer_to_objref(ptr_ref[])::T
 end
 
 mutable struct CurlResponseContext
@@ -301,10 +340,8 @@ function write_callback(buf::Ptr{UInt8}, s::Csize_t, n::Csize_t, p_ctxt::Ptr{Cvo
     if sz == 0 || buf == C_NULL
         return sz
     end
-    data = Array{UInt8}(undef, sz)
-    unsafe_copyto!(pointer(data), buf, sz)
     try
-        write(r_ctx.stream, data)
+        Base.unsafe_write(r_ctx.stream, buf, sz)
         flush(r_ctx.stream)
         isnothing(r_ctx.on_data) || r_ctx.on_data(r_ctx.stream)
     catch e
@@ -326,3 +363,5 @@ include("protocols/HTTP.jl")
 include("protocols/IMAP.jl")
 
 end
+
+
