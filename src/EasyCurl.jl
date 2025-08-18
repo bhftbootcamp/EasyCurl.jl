@@ -148,7 +148,7 @@ mutable struct CurlClient
             LibCURL.curl_easy_cleanup(easy_handle)
             throw(ArgumentError("curl_multi_init failed"))
         end
-        zeros(UInt8, LibCURL.CURL_ERROR_SIZE)
+        buf = zeros(UInt8, LibCURL.CURL_ERROR_SIZE)
         r = LibCURL.curl_easy_setopt(easy_handle, CURLOPT_ERRORBUFFER, pointer(buf))
         r == CURLE_OK || begin
             LibCURL.curl_multi_cleanup(multi_handle)
