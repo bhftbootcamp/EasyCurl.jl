@@ -48,8 +48,8 @@ abstract type AbstractCurlError <: Exception end
 
 # COV_EXCL_START
 function Base.showerror(io::IO, e::AbstractCurlError)
-    if !isempty(e.libCurl_message)
-        print(io, nameof(typeof(e)), "{", e.code, "}: ", e.libCurl_message)
+    if !isempty(e.libcurl_message)
+        print(io, nameof(typeof(e)), "{", e.code, "}: ", e.libcurl_message)
     else
         print(io, nameof(typeof(e)), "{", e.code, "}: ", e.message)
     end
@@ -57,7 +57,7 @@ end
 # COV_EXCL_STOP
 
 @inline function _errorbuffer_msg(buf::Union{Nothing,Vector{UInt8}})::String
-    if buf === nothing || isempty(buf) || buf[1] == 0x00
+    if buf === nothing || buf[1] == 0x00
         return ""
     end
     n0  = findfirst(==(0x00), buf)
@@ -85,7 +85,7 @@ ERROR: CurlEasyError{48}: An unknown option was passed in to libcurl
 struct CurlEasyError{code} <: AbstractCurlError
     code::Int
     message::String
-    libCurl_message::String
+    libcurl_message::String
 
     function CurlEasyError(c::Integer, curl)
         msg = unsafe_string(LibCURL.curl_easy_strerror(UInt32(c)))
@@ -113,7 +113,7 @@ ERROR: CurlMultiError{1}: Invalid multi handle
 struct CurlMultiError{code} <: AbstractCurlError
     code::Int
     message::String
-    libCurl_message::String
+    libcurl_message::String
 
     function CurlMultiError(c::Integer, curl)
         msg = unsafe_string(LibCURL.curl_multi_strerror(UInt32(c)))
