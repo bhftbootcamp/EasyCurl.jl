@@ -51,7 +51,7 @@ function Base.showerror(io::IO, e::AbstractCurlError)
     print(io, nameof(typeof(e)), "{", e.code, "}: ", e.message)
     if !isempty(getfield(e, :error_buffer)) && getfield(e, :error_buffer)[1] != 0x00
         try
-            print(io, " — ", unsafe_string(pointer(getfield(e, :error_buffer))))
+            print(io, "  ", unsafe_string(pointer(getfield(e, :error_buffer))))
         catch
         end
     end
@@ -334,7 +334,7 @@ function write_callback(buf::Ptr{UInt8}, s::Csize_t, n::Csize_t, p_ctxt::Ptr{Cvo
     data = Array{UInt8}(undef, sz)
     unsafe_copyto!(pointer(data), buf, sz)
     try
-        write(r_ctx.stream, data)
+        Base.unsafe_write(r_ctx.stream, buf, sz)
         flush(r_ctx.stream)
         isnothing(r_ctx.on_data) || r_ctx.on_data(r_ctx.stream)
     catch e
@@ -356,3 +356,5 @@ include("protocols/HTTP.jl")
 include("protocols/IMAP.jl")
 
 end
+
+
