@@ -48,15 +48,26 @@ abstract type AbstractCurlError <: Exception end
 
 # COV_EXCL_START
 function Base.showerror(io::IO, e::AbstractCurlError)
-    print(io, nameof(typeof(e)), "{", e.code, "}: ", e.message)
-    if !isempty(getfield(e, :error_buffer)) && getfield(e, :error_buffer)[1] != 0x00
+    if !isempty(e.libCurl_message)
         try
-            print(io, "  ", unsafe_string(pointer(getfield(e, :error_buffer))))
+            print(io, nameof(typeof(e)), "{", e.code, "}: ", e.libCurl_message)
         catch
         end
+    else
+        print(io, nameof(typeof(e)), "{", e.code, "}: ", e.message)
     end
 end
 # COV_EXCL_STOP
+
+@inline function _errorbuffer_msg(buf::Union{Nothing,Vector{UInt8}})::String
+    if buf === nothing || isempty(buf) || buf[1] == 0x00
+        return ""
+    end
+    n0  = findfirst(==(0x00), buf)
+    raw = String(n0 === nothing ? buf : @view buf[1:n0-1])
+    msg = chomp(strip(raw))
+    return msg
+end
 
 """
     CurlEasyError <: AbstractCurlError
@@ -77,11 +88,11 @@ ERROR: CurlEasyError{48}: An unknown option was passed in to libcurl
 struct CurlEasyError{code} <: AbstractCurlError
     code::Int
     message::String
-    error_buffer::Vector{UInt8}
+    libCurl_message::String
 
     function CurlEasyError(c::Integer, curl)
         msg = unsafe_string(LibCURL.curl_easy_strerror(UInt32(c)))
-        buf = (curl.error_buffer === nothing) ? UInt8[] : copy(curl.error_buffer)
+        buf = _errorbuffer_msg(curl.error_buffer)
         return new{Int(c)}(Int(c), msg, buf)
     end
 end
@@ -105,11 +116,11 @@ ERROR: CurlMultiError{1}: Invalid multi handle
 struct CurlMultiError{code} <: AbstractCurlError
     code::Int
     message::String
-    error_buffer::Vector{UInt8}
+    libCurl_message::String
 
     function CurlMultiError(c::Integer, curl)
         msg = unsafe_string(LibCURL.curl_multi_strerror(UInt32(c)))
-        buf = (curl.error_buffer === nothing) ? UInt8[] : copy(curl.error_buffer)
+        buf = _errorbuffer_msg(curl.error_buffer)
         return new{Int(c)}(Int(c), msg, buf)
     end
 end
@@ -309,6 +320,7 @@ function get_private_data(c::CurlClient, ::Type{T})::T where {T}
     private_ref = Ref{T}()
     curl_easy_getinfo(c, CURLINFO_PRIVATE, private_ref)
     return private_ref[]
+    # return unsafe_pointer_to_objref(ptr_ref[])::T
 end
 
 mutable struct CurlResponseContext
@@ -331,8 +343,6 @@ function write_callback(buf::Ptr{UInt8}, s::Csize_t, n::Csize_t, p_ctxt::Ptr{Cvo
     if sz == 0 || buf == C_NULL
         return sz
     end
-    data = Array{UInt8}(undef, sz)
-    unsafe_copyto!(pointer(data), buf, sz)
     try
         Base.unsafe_write(r_ctx.stream, buf, sz)
         flush(r_ctx.stream)
