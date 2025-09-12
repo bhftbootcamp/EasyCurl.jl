@@ -440,6 +440,17 @@ function http_request(
             C_NULL,
             CurlResponseContext(f),
         )
+        req.response_context.req_snapshot = (;
+            method = req.method,
+            url    = req.url,
+            headers = copy(req.headers),
+            proxy   = req.options.proxy,
+            interface = req.options.interface,
+            version   = req.options.version,
+            connect_timeout = req.options.connect_timeout,
+            read_timeout    = req.options.read_timeout,
+            body_len = length(req.body),
+        )
         try
             perform_request(client, req)
             r = HTTPResponse(req.response_context)

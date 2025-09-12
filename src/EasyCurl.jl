@@ -90,7 +90,13 @@ struct CurlEasyError{code} <: AbstractCurlError
     function CurlEasyError(c::Integer, curl)
         msg = unsafe_string(LibCURL.curl_easy_strerror(UInt32(c)))
         buf = _errorbuffer_msg(curl.error_buffer)
-        return new{Int(c)}(Int(c), msg, buf)
+        ctx = try
+            get_private_data(curl, CurlResponseContext)
+        catch
+            nothing
+        end
+        diag = _diagnostics(curl, ctx)                              
+        return new{Int(c)}(Int(c), msg, string(buf, "\n\n", diag))
     end
 end
 
@@ -160,6 +166,25 @@ mutable struct CurlClient
         finalizer(close, c)
         return c
     end
+end
+
+@inline function _get_strinfo(c::CurlClient, info::CURLINFO)
+    ref = Ref{Cstring}()
+    curl_easy_getinfo(c, info, ref)
+    p = ref[]
+    return p == C_NULL ? nothing : unsafe_string(p)
+end
+
+@inline _get_longinfo(c::CurlClient, info::CURLINFO) = (r=Ref{Clong}(); curl_easy_getinfo(c, info, r); r[])
+@inline _get_doubleinfo(c::CurlClient, info::CURLINFO) = (r=Ref{Cdouble}(); curl_easy_getinfo(c, info, r); r[])
+
+function _redact_headers(h::Vector{Pair{String,String}})
+    secrets = Set(["authorization","proxy-authorization","cookie","set-cookie"])
+    out = Pair{String,String}[]
+    for (k,v) in h
+        push!(out, (lowercase(k) in secrets) ? (k => "<redacted>") : (k => v))
+    end
+    return out
 end
 
 function curl_cleanup(c::CurlClient)
@@ -328,10 +353,59 @@ mutable struct CurlResponseContext
     headers::Vector{Pair{String,String}}
     on_data::Union{Nothing,Function}
     error::Union{Nothing,Exception}
+    req_snapshot::Any
 
     function CurlResponseContext(on_data::Union{Nothing,Function})
-        return new(0, 0, 0.0, IOBuffer(; append = true), Vector{Pair{String,String}}(), on_data, nothing)
+        return new(0, 0, 0.0, IOBuffer(; append = true), Vector{Pair{String,String}}(), on_data, nothing, nothing)
     end
+end
+
+function _diagnostics(curl::CurlClient, ctx::Union{Nothing,CurlResponseContext})
+    io = IOBuffer()
+
+    effective_url  = _get_strinfo(curl, CURLINFO_EFFECTIVE_URL)
+    primary_ip     = _get_strinfo(curl, CURLINFO_PRIMARY_IP)
+    local_ip       = _get_strinfo(curl, CURLINFO_LOCAL_IP)
+    primary_port   = try _get_longinfo(curl, CURLINFO_PRIMARY_PORT) catch; nothing end
+    local_port     = try _get_longinfo(curl, CURLINFO_LOCAL_PORT) catch; nothing end
+    t_total        = try _get_doubleinfo(curl, CURLINFO_TOTAL_TIME) catch; 0.0 end
+    t_connect      = try _get_doubleinfo(curl, CURLINFO_CONNECT_TIME) catch; 0.0 end
+    t_app          = try _get_doubleinfo(curl, CURLINFO_APPCONNECT_TIME) catch; 0.0 end
+    t_name         = try _get_doubleinfo(curl, CURLINFO_NAMELOOKUP_TIME) catch; 0.0 end
+
+    if ctx !== nothing && ctx.req_snapshot !== nothing
+        snap = ctx.req_snapshot
+        scheme = begin
+            m = match(r"^([a-zA-Z][a-zA-Z0-9+.-]*)://", snap.url)
+            isnothing(m) ? missing : m.captures[1]
+        end
+        println(io, "$(get(snap, :method, "\\")) $(get(snap, :url, ""))")
+        println(io, "protocol: ", scheme)
+        if haskey(snap, :proxy) && !isnothing(snap.proxy); println(io, "proxy: ", snap.proxy); end
+        if haskey(snap, :interface) && !isnothing(snap.interface); println(io, "interface: ", snap.interface); end
+        println(io, "connect_timeout=$(get(snap,:connect_timeout,missing))s read_timeout=$(get(snap,:read_timeout,missing))s")
+        if haskey(snap, :version) && !isnothing(snap.version); println(io, "requested_http_version: ", snap.version); end
+        println(io, "headers:")
+        for (k,v) in _redact_headers(get(snap,:headers, Pair{String,String}[]))
+            println(io, "  $k: $v")
+        end
+        println(io, "body_len: ", get(snap,:body_len, 0))
+    else
+        println(io, "(no request snapshot)")
+    end
+
+    println(io, "\n=== Connection ===")
+    if !isnothing(local_ip) || !isnothing(primary_ip)
+        println(io, "local $(something(local_ip,"?\\")):$(something(local_port,"?\\")) remote $(something(primary_ip,"?\\")):$(something(primary_port,"?\\"))")
+    end
+    if !isnothing(effective_url)
+        println(io, "effective_url: ", effective_url)
+    end
+
+    println(io, "\n=== Timings (s) ===")
+    println(io, "namelookup=", t_name, " connect=", t_connect, " appconnect=", t_app, " total=", t_total)
+
+    return String(take!(io))
 end
 
 function write_callback(buf::Ptr{UInt8}, s::Csize_t, n::Csize_t, p_ctxt::Ptr{Cvoid})
