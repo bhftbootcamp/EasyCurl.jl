@@ -49,9 +49,9 @@ abstract type AbstractCurlError <: Exception end
 # COV_EXCL_START
 function Base.showerror(io::IO, e::AbstractCurlError)
     if !isempty(e.libcurl_message)
-        print(io, nameof(typeof(e)), "{", e.code, "}: ", e.libcurl_message)
+        print(io, nameof(typeof(e)), "{", e.code, "}: ", e.libcurl_message, diagnostic_message)
     else
-        print(io, nameof(typeof(e)), "{", e.code, "}: ", e.message)
+        print(io, nameof(typeof(e)), "{", e.code, "}: ", e.message, diagnostic_message)
     end
 end
 # COV_EXCL_STOP
@@ -86,6 +86,7 @@ struct CurlEasyError{code} <: AbstractCurlError
     code::Int
     message::String
     libcurl_message::String
+    diagnostic_message::String
 
     function CurlEasyError(c::Integer, curl)
         msg = unsafe_string(LibCURL.curl_easy_strerror(UInt32(c)))
@@ -96,7 +97,7 @@ struct CurlEasyError{code} <: AbstractCurlError
             nothing
         end
         diag = _diagnostics(curl, ctx)                              
-        return new{Int(c)}(Int(c), msg, string(buf, "\n\n", diag))
+        return new{Int(c)}(Int(c), msg, buf, diag)
     end
 end
 
@@ -120,11 +121,18 @@ struct CurlMultiError{code} <: AbstractCurlError
     code::Int
     message::String
     libcurl_message::String
+    diagnostic_message::String
 
     function CurlMultiError(c::Integer, curl)
         msg = unsafe_string(LibCURL.curl_multi_strerror(UInt32(c)))
         buf = _errorbuffer_msg(curl.error_buffer)
-        return new{Int(c)}(Int(c), msg, buf)
+        ctx = try
+            get_private_data(curl, CurlResponseContext)
+        catch
+            nothing
+        end
+        diag = _diagnostics(curl, ctx)                              
+        return new{Int(c)}(Int(c), msg, buf, diag)
     end
 end
 
