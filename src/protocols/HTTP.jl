@@ -356,6 +356,7 @@ function perform_request(c::CurlClient, r::HTTPRequest)
     return nothing
 end
 
+
 """
     http_request(method::String, url::String; kw...) -> HTTPResponse
 

@@ -74,6 +74,7 @@ Represents an error from a libcurl easy interface call.
 ## Fields
 - `code::Int`: The libcurl error code.
 - `message::String`: The corresponding error message from libcurl.
+- `diagnostic_message::String`: diagnostic message, that will contain virtually all context info
 
 ## Examples
 
@@ -92,7 +93,10 @@ struct CurlEasyError{code} <: AbstractCurlError
         msg = unsafe_string(LibCURL.curl_easy_strerror(UInt32(c)))
         buf = _errorbuffer_msg(curl.error_buffer)
         ctx = try
-            get_private_data(curl, CurlResponseContext)
+            private_ref = Ref{CurlResponseContext}()
+            r = LibCURL.curl_easy_getinfo(c.easy_handle, CURLINFO_PRIVATE, private_ref)
+            r == CURLE_OK || throw(ArgumentError("Context getting error"))
+            private_ref[]
         catch
             nothing
         end
@@ -109,6 +113,7 @@ Represents an error from a libcurl multi interface call.
 ## Fields
 - `code::Int`: The libcurl multi error code.
 - `message::String`: The corresponding error message from libcurl.
+- `diagnostic_message::String`: diagnostic message, that will contain virtually all context info
 
 ## Examples
 
@@ -127,7 +132,10 @@ struct CurlMultiError{code} <: AbstractCurlError
         msg = unsafe_string(LibCURL.curl_multi_strerror(UInt32(c)))
         buf = _errorbuffer_msg(curl.error_buffer)
         ctx = try
-            get_private_data(curl, CurlResponseContext)
+            private_ref = Ref{CurlResponseContext}()
+            r = LibCURL.curl_easy_getinfo(c.easy_handle, CURLINFO_PRIVATE, private_ref)
+            r == CURLE_OK || throw(ArgumentError("Context getting error"))
+            private_ref[]
         catch
             nothing
         end
@@ -183,8 +191,19 @@ end
     return p == C_NULL ? nothing : unsafe_string(p)
 end
 
-@inline _get_longinfo(c::CurlClient, info::CURLINFO) = (r=Ref{Clong}(); curl_easy_getinfo(c, info, r); r[])
-@inline _get_doubleinfo(c::CurlClient, info::CURLINFO) = (r=Ref{Cdouble}(); curl_easy_getinfo(c, info, r); r[])
+@inline function _get_longinfo(c::CurlClient, info::CURLINFO)
+    r=Ref{Clong}()
+    r_code = LibCURL.curl_easy_getinfo(c.easy_handle, info, r)
+    r_code == CURLE_OK && return r[]
+    return nothing
+end
+
+@inline function _get_doubleinfo(c::CurlClient, info::CURLINFO)
+    r=Ref{Cdouble}()
+    r_code = LibCURL.curl_easy_getinfo(c.easy_handle, info, r)
+    r_code == CURLE_OK && return r[]
+    return nothing
+end
 
 function _redact_headers(h::Vector{Pair{String,String}})
     secrets = Set(["authorization","proxy-authorization","cookie","set-cookie"])
@@ -353,7 +372,23 @@ function get_private_data(c::CurlClient, ::Type{T})::T where {T}
     # return unsafe_pointer_to_objref(ptr_ref[])::T
 end
 
-mutable struct CurlResponseContext
+const ReqSnapshot = NamedTuple{
+    (:method, :url, :headers, :proxy, :interface, :version,
+     :connect_timeout, :read_timeout, :body_len),
+    Tuple{
+        String,                       # method ("GET", "POST", etc.)
+        String,                       # url
+        Vector{Pair{String,String}},  # headers
+        Union{String,Nothing},        # proxy
+        Union{String,Nothing},        # interface
+        Union{UInt,Nothing},          # version
+        Float64,                      # connect_timeout
+        Float64,                      # read_timeout
+        Int                           # body_len
+    }
+}
+
+@kwdef mutable struct CurlResponseContext
     status::Int
     version::Int
     total_time::Float64
@@ -361,7 +396,7 @@ mutable struct CurlResponseContext
     headers::Vector{Pair{String,String}}
     on_data::Union{Nothing,Function}
     error::Union{Nothing,Exception}
-    req_snapshot::Any
+    req_snapshot::Union{Nothing,ReqSnapshot}
 
     function CurlResponseContext(on_data::Union{Nothing,Function})
         return new(0, 0, 0.0, IOBuffer(; append = true), Vector{Pair{String,String}}(), on_data, nothing, nothing)
@@ -374,12 +409,12 @@ function _diagnostics(curl::CurlClient, ctx::Union{Nothing,CurlResponseContext})
     effective_url  = _get_strinfo(curl, CURLINFO_EFFECTIVE_URL)
     primary_ip     = _get_strinfo(curl, CURLINFO_PRIMARY_IP)
     local_ip       = _get_strinfo(curl, CURLINFO_LOCAL_IP)
-    primary_port   = try _get_longinfo(curl, CURLINFO_PRIMARY_PORT) catch; nothing end
-    local_port     = try _get_longinfo(curl, CURLINFO_LOCAL_PORT) catch; nothing end
-    t_total        = try _get_doubleinfo(curl, CURLINFO_TOTAL_TIME) catch; 0.0 end
-    t_connect      = try _get_doubleinfo(curl, CURLINFO_CONNECT_TIME) catch; 0.0 end
-    t_app          = try _get_doubleinfo(curl, CURLINFO_APPCONNECT_TIME) catch; 0.0 end
-    t_name         = try _get_doubleinfo(curl, CURLINFO_NAMELOOKUP_TIME) catch; 0.0 end
+    primary_port   = _get_longinfo(curl, CURLINFO_PRIMARY_PORT)
+    local_port     = _get_longinfo(curl, CURLINFO_LOCAL_PORT)
+    t_total        = _get_doubleinfo(curl, CURLINFO_TOTAL_TIME)
+    t_connect      = _get_doubleinfo(curl, CURLINFO_CONNECT_TIME)
+    t_app          = _get_doubleinfo(curl, CURLINFO_APPCONNECT_TIME)
+    t_name         = _get_doubleinfo(curl, CURLINFO_NAMELOOKUP_TIME)
 
     if ctx !== nothing && ctx.req_snapshot !== nothing
         snap = ctx.req_snapshot
@@ -389,10 +424,10 @@ function _diagnostics(curl::CurlClient, ctx::Union{Nothing,CurlResponseContext})
         end
         println(io, "$(get(snap, :method, "\\")) $(get(snap, :url, ""))")
         println(io, "protocol: ", scheme)
-        if haskey(snap, :proxy) && !isnothing(snap.proxy); println(io, "proxy: ", snap.proxy); end
-        if haskey(snap, :interface) && !isnothing(snap.interface); println(io, "interface: ", snap.interface); end
+        haskey(snap, :proxy) && !isnothing(snap.proxy) && println(io, "proxy: ", snap.proxy)
+        haskey(snap, :interface) && !isnothing(snap.interface) && println(io, "interface: ", snap.interface)
         println(io, "connect_timeout=$(get(snap,:connect_timeout,missing))s read_timeout=$(get(snap,:read_timeout,missing))s")
-        if haskey(snap, :version) && !isnothing(snap.version); println(io, "requested_http_version: ", snap.version); end
+        haskey(snap, :version) && !isnothing(snap.version) && println(io, "requested_http_version: ", snap.version); 
         println(io, "headers:")
         for (k,v) in _redact_headers(get(snap,:headers, Pair{String,String}[]))
             println(io, "  $k: $v")
