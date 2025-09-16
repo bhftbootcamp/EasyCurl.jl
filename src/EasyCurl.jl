@@ -386,21 +386,10 @@ end
     version::Int = 0
     total_time::Float64 = 0.0
     stream::IOBuffer = IOBuffer(; append = true)
-    headers::Vector{Pair{String,String}} = Vector{Pair{String,String}}()
-    on_data::Union{Nothing,Function}
+    headers::Vector{Pair{String,String}} = []
+    on_data::Union{Nothing,Function} = nothing
     error::Union{Nothing,Exception} = nothing
     req_snapshot::Union{Nothing,ReqSnapshot} = nothing
-
-    function CurlResponseContext(on_data::Union{Nothing,Function})
-        return new(0, 0, 0.0, IOBuffer(; append = true), Pair{String,String}[], on_data, nothing, nothing)
-    end
-
-    function CurlResponseContext(status::Int, version::Int, total_time::Float64,
-        stream::IOBuffer, headers::Vector{Pair{String,String}},
-        on_data::Union{Nothing,Function}, error::Union{Nothing,Exception},
-        req_snapshot::Union{Nothing,ReqSnapshot})
-        return new(status, version, total_time, stream, headers, on_data, error, req_snapshot)
-    end
 end
 
 function _diagnostics(curl::CurlClient, ctx::Union{Nothing,CurlResponseContext})
@@ -440,7 +429,9 @@ function _diagnostics(curl::CurlClient, ctx::Union{Nothing,CurlResponseContext})
 
     println(io, "\n=== Connection ===")
     if !isnothing(local_ip) || !isnothing(primary_ip)
-        println(io, "local $(something(local_ip,"?\\")):$(something(local_port,"?\\")) remote $(something(primary_ip,"?\\")):$(something(primary_port,"?\\"))")
+        local_str = string(something(local_ip, "?\\"), ":", something(local_port, "?\\"))
+        remote_str = string(something(primary_ip, "?\\"), ":", something(primary_port, "?\\"))
+        println(io, "local $local_str remote $remote_str")
     end
     if !isnothing(effective_url)
         println(io, "effective_url: ", effective_url)
