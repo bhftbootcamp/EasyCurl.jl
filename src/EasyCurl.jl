@@ -48,11 +48,8 @@ abstract type AbstractCurlError <: Exception end
 
 # COV_EXCL_START
 function Base.showerror(io::IO, e::AbstractCurlError)
-    if !isempty(e.libcurl_message)
-        print(io, nameof(typeof(e)), "{", e.code, "}: ", e.libcurl_message, diagnostic_message)
-    else
-        print(io, nameof(typeof(e)), "{", e.code, "}: ", e.message, diagnostic_message)
-    end
+    msg = isempty(e.libcurl_message) ? e.message : e.libcurl_message
+    print(io, nameof(typeof(e)), "{", e.code, "}: ", msg, e.diagnostic_message)
 end
 # COV_EXCL_STOP
 
@@ -92,13 +89,11 @@ struct CurlEasyError{code} <: AbstractCurlError
     function CurlEasyError(c::Integer, curl)
         msg = unsafe_string(LibCURL.curl_easy_strerror(UInt32(c)))
         buf = _errorbuffer_msg(curl.error_buffer)
-        ctx = try
-            private_ref = Ref{CurlResponseContext}()
-            r = LibCURL.curl_easy_getinfo(c.easy_handle, CURLINFO_PRIVATE, private_ref)
-            r == CURLE_OK || throw(ArgumentError("Context getting error"))
-            private_ref[]
-        catch
-            nothing
+        ctx = nothing
+        private_ref = Ref{CurlResponseContext}()
+        r = LibCURL.curl_easy_getinfo(curl.easy_handle, CURLINFO_PRIVATE, private_ref)
+        if (r == CURLE_OK)
+            ctx = private_ref[]
         end
         diag = _diagnostics(curl, ctx)                              
         return new{Int(c)}(Int(c), msg, buf, diag)
@@ -131,13 +126,11 @@ struct CurlMultiError{code} <: AbstractCurlError
     function CurlMultiError(c::Integer, curl)
         msg = unsafe_string(LibCURL.curl_multi_strerror(UInt32(c)))
         buf = _errorbuffer_msg(curl.error_buffer)
-        ctx = try
-            private_ref = Ref{CurlResponseContext}()
-            r = LibCURL.curl_easy_getinfo(c.easy_handle, CURLINFO_PRIVATE, private_ref)
-            r == CURLE_OK || throw(ArgumentError("Context getting error"))
-            private_ref[]
-        catch
-            nothing
+        ctx = nothing
+        private_ref = Ref{CurlResponseContext}()
+        r = LibCURL.curl_easy_getinfo(curl.easy_handle, CURLINFO_PRIVATE, private_ref)
+        if (r == CURLE_OK)
+            ctx = private_ref[]
         end
         diag = _diagnostics(curl, ctx)                              
         return new{Int(c)}(Int(c), msg, buf, diag)
@@ -186,20 +179,21 @@ end
 
 @inline function _get_strinfo(c::CurlClient, info::CURLINFO)
     ref = Ref{Cstring}()
-    curl_easy_getinfo(c, info, ref)
+    r_code = LibCURL.curl_easy_getinfo(c.easy_handle, info, ref)
+    r_code == CURLE_OK || return nothing
     p = ref[]
     return p == C_NULL ? nothing : unsafe_string(p)
 end
 
 @inline function _get_longinfo(c::CurlClient, info::CURLINFO)
-    r=Ref{Clong}()
+    r = Ref{Clong}()
     r_code = LibCURL.curl_easy_getinfo(c.easy_handle, info, r)
     r_code == CURLE_OK && return r[]
     return nothing
 end
 
 @inline function _get_doubleinfo(c::CurlClient, info::CURLINFO)
-    r=Ref{Cdouble}()
+    r = Ref{Cdouble}()
     r_code = LibCURL.curl_easy_getinfo(c.easy_handle, info, r)
     r_code == CURLE_OK && return r[]
     return nothing
@@ -209,7 +203,8 @@ function _redact_headers(h::Vector{Pair{String,String}})
     secrets = Set(["authorization","proxy-authorization","cookie","set-cookie"])
     out = Pair{String,String}[]
     for (k,v) in h
-        push!(out, (lowercase(k) in secrets) ? (k => "<redacted>") : (k => v))
+        concealed = lowercase(k) in secrets ? "<redacted>" : v
+        push!(out, k => concealed)
     end
     return out
 end
@@ -329,7 +324,9 @@ function curl_multi_perform(c::CurlClient)
         if mc != CURLM_OK
             throw(CurlMultiError(mc, c))
         end
-        isnothing(r_ctx.error) || throw(r_ctx.error)
+        if r_ctx !== nothing
+            isnothing(r_ctx.error) || throw(r_ctx.error)
+        end
     end
 
     while true
@@ -367,39 +364,42 @@ end
 
 function get_private_data(c::CurlClient, ::Type{T})::T where {T}
     private_ref = Ref{T}()
-    curl_easy_getinfo(c, CURLINFO_PRIVATE, private_ref)
-    return private_ref[]
+    r = LibCURL.curl_easy_getinfo(c.easy_handle, CURLINFO_PRIVATE, private_ref)
+    return r == CURLE_OK ? private_ref[] : nothing
     # return unsafe_pointer_to_objref(ptr_ref[])::T
 end
 
-const ReqSnapshot = NamedTuple{
-    (:method, :url, :headers, :proxy, :interface, :version,
-     :connect_timeout, :read_timeout, :body_len),
-    Tuple{
-        String,                       # method ("GET", "POST", etc.)
-        String,                       # url
-        Vector{Pair{String,String}},  # headers
-        Union{String,Nothing},        # proxy
-        Union{String,Nothing},        # interface
-        Union{UInt,Nothing},          # version
-        Float64,                      # connect_timeout
-        Float64,                      # read_timeout
-        Int                           # body_len
-    }
-}
+@kwdef struct ReqSnapshot
+    method::String
+    url::String
+    headers::Vector{Pair{String,String}}
+    proxy::Union{String,Nothing}
+    interface::Union{String,Nothing}
+    version::Union{UInt,Nothing}
+    connect_timeout::Float64
+    read_timeout::Float64
+    body_len::Int
+end
 
 @kwdef mutable struct CurlResponseContext
-    status::Int
-    version::Int
-    total_time::Float64
-    stream::IOBuffer
-    headers::Vector{Pair{String,String}}
+    status::Int = 0
+    version::Int = 0
+    total_time::Float64 = 0.0
+    stream::IOBuffer = IOBuffer(; append = true)
+    headers::Vector{Pair{String,String}} = Vector{Pair{String,String}}()
     on_data::Union{Nothing,Function}
-    error::Union{Nothing,Exception}
-    req_snapshot::Union{Nothing,ReqSnapshot}
+    error::Union{Nothing,Exception} = nothing
+    req_snapshot::Union{Nothing,ReqSnapshot} = nothing
 
     function CurlResponseContext(on_data::Union{Nothing,Function})
-        return new(0, 0, 0.0, IOBuffer(; append = true), Vector{Pair{String,String}}(), on_data, nothing, nothing)
+        return new(0, 0, 0.0, IOBuffer(; append = true), Pair{String,String}[], on_data, nothing, nothing)
+    end
+
+    function CurlResponseContext(status::Int, version::Int, total_time::Float64,
+        stream::IOBuffer, headers::Vector{Pair{String,String}},
+        on_data::Union{Nothing,Function}, error::Union{Nothing,Exception},
+        req_snapshot::Union{Nothing,ReqSnapshot})
+        return new(status, version, total_time, stream, headers, on_data, error, req_snapshot)
     end
 end
 
@@ -422,17 +422,18 @@ function _diagnostics(curl::CurlClient, ctx::Union{Nothing,CurlResponseContext})
             m = match(r"^([a-zA-Z][a-zA-Z0-9+.-]*)://", snap.url)
             isnothing(m) ? missing : m.captures[1]
         end
-        println(io, "$(get(snap, :method, "\\")) $(get(snap, :url, ""))")
+
+        println(io, "$(snap.method) $(snap.url)")
         println(io, "protocol: ", scheme)
-        haskey(snap, :proxy) && !isnothing(snap.proxy) && println(io, "proxy: ", snap.proxy)
-        haskey(snap, :interface) && !isnothing(snap.interface) && println(io, "interface: ", snap.interface)
-        println(io, "connect_timeout=$(get(snap,:connect_timeout,missing))s read_timeout=$(get(snap,:read_timeout,missing))s")
-        haskey(snap, :version) && !isnothing(snap.version) && println(io, "requested_http_version: ", snap.version); 
+        !isnothing(snap.proxy)     && println(io, "proxy: ", snap.proxy)
+        !isnothing(snap.interface) && println(io, "interface: ", snap.interface)
+        println(io, "connect_timeout=$(snap.connect_timeout)s read_timeout=$(snap.read_timeout)s")
+        !isnothing(snap.version)   && println(io, "requested_http_version: ", snap.version)
         println(io, "headers:")
-        for (k,v) in _redact_headers(get(snap,:headers, Pair{String,String}[]))
+        for (k,v) in _redact_headers(snap.headers)
             println(io, "  $k: $v")
         end
-        println(io, "body_len: ", get(snap,:body_len, 0))
+        println(io, "body_len: ", snap.body_len)
     else
         println(io, "(no request snapshot)")
     end

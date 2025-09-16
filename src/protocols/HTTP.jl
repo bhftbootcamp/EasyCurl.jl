@@ -347,9 +347,12 @@ function perform_request(c::CurlClient, r::HTTPRequest)
 
         curl_multi_perform(c)
     finally
-        r.response_context.version = get_http_version(c)
-        r.response_context.status = get_http_response_status(c)
-        r.response_context.total_time = get_total_time(c)
+        try
+            r.response_context.version = get_http_version(c)
+            r.response_context.status = get_http_response_status(c)
+            r.response_context.total_time = get_total_time(c)
+        catch
+        end
         curl_multi_remove_handle(c)
         curl_easy_reset(c)
     end
@@ -441,7 +444,7 @@ function http_request(
             C_NULL,
             CurlResponseContext(f),
         )
-        req.response_context.req_snapshot = (;
+        req.response_context.req_snapshot = ReqSnapshot(;
             method = req.method,
             url    = req.url,
             headers = copy(req.headers),
@@ -450,7 +453,7 @@ function http_request(
             version   = req.options.version,
             connect_timeout = req.options.connect_timeout,
             read_timeout    = req.options.read_timeout,
-            body_len = length(req.body),
+            body_len = length(req.body)
         )
         try
             perform_request(client, req)
