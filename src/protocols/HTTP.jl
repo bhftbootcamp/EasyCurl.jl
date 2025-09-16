@@ -442,7 +442,7 @@ function http_request(
             Vector{UInt8}(body),
             HTTPOptions(; options...),
             C_NULL,
-            CurlResponseContext(f),
+            CurlResponseContext(; on_data=f),
         )
         req.response_context.req_snapshot = ReqSnapshot(;
             method = req.method,
