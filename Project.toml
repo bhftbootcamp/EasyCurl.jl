@@ -4,7 +4,6 @@ version = "4.2.1"
 
 [deps]
 LibCURL = "b27032c2-a3e7-50c8-80cd-2d36dbcbfd21"
-Serde = "db9b398d-9517-45f8-9a95-92af99003e0e"
 
 [compat]
 LibCURL = "0.6.3"
