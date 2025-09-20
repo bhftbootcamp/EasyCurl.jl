@@ -48,8 +48,16 @@ abstract type AbstractCurlError <: Exception end
 
 # COV_EXCL_START
 function Base.showerror(io::IO, e::AbstractCurlError)
-    msg = isempty(e.libcurl_message) ? e.message : e.libcurl_message
-    print(io, nameof(typeof(e)), "{", e.code, "}: ", msg, e.diagnostic_message)
+    msg = (hasfield(typeof(e), :libcurl_message) && !isempty(getfield(e, :libcurl_message))) ? getfield(e, :libcurl_message) : getfield(e, :message)
+    print(io, nameof(typeof(e)), "{", getfield(e, :code), "}: ", msg)
+
+    if hasfield(typeof(e), :diagnostics)
+        d = getfield(e, :diagnostics)
+        if d !== nothing
+            print(io, '\n')
+            show(io, d)
+        end
+    end
 end
 # COV_EXCL_STOP
 
@@ -61,6 +69,75 @@ end
     raw = String(n0 === nothing ? buf : @view buf[1:n0-1])
     msg = chomp(strip(raw))
     return msg
+end
+
+@kwdef struct ReqSnapshot
+    method::String
+    url::String
+    headers::Vector{Pair{String,String}}
+    proxy::Union{String,Nothing}
+    interface::Union{String,Nothing}
+    version::Union{UInt,Nothing}
+    connect_timeout::Float64
+    read_timeout::Float64
+    body_len::Int
+end
+
+Base.@kwdef struct CurlDiagnostics
+    req::Union{Nothing,ReqSnapshot} = nothing
+    effective_url::Union{Nothing,String} = nothing
+    primary_ip::Union{Nothing,String}   = nothing
+    local_ip::Union{Nothing,String} = nothing
+    primary_port::Union{Nothing,Int}    = nothing
+    local_port::Union{Nothing,Int}  = nothing
+    t_total::Union{Nothing,Float64} = nothing
+    t_connect::Union{Nothing,Float64}   = nothing
+    t_app::Union{Nothing,Float64}   = nothing
+    t_name::Union{Nothing,Float64}  = nothing
+end
+
+function Base.show(io::IO, d::CurlDiagnostics)
+    if d.req !== nothing
+        snap = d.req::ReqSnapshot
+        scheme = begin
+            m = match(r"^([a-zA-Z][a-zA-Z0-9+.-]*)://", snap.url)
+            isnothing(m) ? missing : m.captures[1]
+        end
+        println(io, "$(snap.method) $(snap.url)")
+        println(io, "protocol: ", scheme)
+        !isnothing(snap.proxy)     && println(io, "proxy: ", snap.proxy)
+        !isnothing(snap.interface) && println(io, "interface: ", snap.interface)
+        println(io, "connect_timeout=$(snap.connect_timeout)s read_timeout=$(snap.read_timeout)s")
+        !isnothing(snap.version)   && println(io, "requested_http_version: ", snap.version)
+        println(io, "headers:")
+        for (k,v) in _redact_headers(snap.headers)
+            println(io, "  $k: $v")
+        end
+        println(io, "body_len: ", snap.body_len)
+    else
+        println(io, "(no request snapshot)")
+    end
+    println(io, "\n=== Connection ===")
+    local_ip  = something(d.local_ip,  nothing)
+    primary_ip = something(d.primary_ip, nothing)
+    if !isnothing(local_ip) || !isnothing(primary_ip)
+        lport = isnothing(d.local_port)   ? "?\\" : string(d.local_port)
+        rport = isnothing(d.primary_port) ? "?\\" : string(d.primary_port)
+        lip   = isnothing(local_ip)   ? "?\\" : local_ip
+        rip   = isnothing(primary_ip) ? "?\\" : primary_ip
+        println(io, "local $(lip):$(lport) remote $(rip):$(rport)")
+    end
+    if d.effective_url !== nothing
+        println(io, "effective_url: ", d.effective_url)
+    end
+    println(io, "\n=== Timings (s) ===")
+    println(io,
+        "namelookup=", something(d.t_name, "?\\"), " ",
+        "connect=",    something(d.t_connect, "?\\"), " ",
+        "appconnect=", something(d.t_app, "?\\"), " ",
+        "total=",      something(d.t_total, "?\\"))
+
+    return nothing
 end
 
 """
@@ -84,7 +161,7 @@ struct CurlEasyError{code} <: AbstractCurlError
     code::Int
     message::String
     libcurl_message::String
-    diagnostic_message::String
+    diagnostics::Union{CurlDiagnostics,Nothing}
 
     function CurlEasyError(c::Integer, curl)
         msg = unsafe_string(LibCURL.curl_easy_strerror(UInt32(c)))
@@ -121,7 +198,7 @@ struct CurlMultiError{code} <: AbstractCurlError
     code::Int
     message::String
     libcurl_message::String
-    diagnostic_message::String
+    diagnostics::Union{CurlDiagnostics,Nothing}
 
     function CurlMultiError(c::Integer, curl)
         msg = unsafe_string(LibCURL.curl_multi_strerror(UInt32(c)))
@@ -369,18 +446,6 @@ function get_private_data(c::CurlClient, ::Type{T})::T where {T}
     # return unsafe_pointer_to_objref(ptr_ref[])::T
 end
 
-@kwdef struct ReqSnapshot
-    method::String
-    url::String
-    headers::Vector{Pair{String,String}}
-    proxy::Union{String,Nothing}
-    interface::Union{String,Nothing}
-    version::Union{UInt,Nothing}
-    connect_timeout::Float64
-    read_timeout::Float64
-    body_len::Int
-end
-
 @kwdef mutable struct CurlResponseContext
     status::Int = 0
     version::Int = 0
@@ -403,53 +468,22 @@ end
     end
 end
 
-function _diagnostics(curl::CurlClient, ctx::Union{Nothing,CurlResponseContext})
-    io = IOBuffer()
+function _diagnostics(curl::CurlClient, ctx::Union{Nothing,CurlResponseContext})::CurlDiagnostics
+    _to_int(x)    = x === nothing ? nothing : Int(x)
+    _to_float(x)  = x === nothing ? nothing : Float64(x)
 
-    effective_url  = _get_strinfo(curl, CURLINFO_EFFECTIVE_URL)
-    primary_ip     = _get_strinfo(curl, CURLINFO_PRIMARY_IP)
-    local_ip       = _get_strinfo(curl, CURLINFO_LOCAL_IP)
-    primary_port   = _get_longinfo(curl, CURLINFO_PRIMARY_PORT)
-    local_port     = _get_longinfo(curl, CURLINFO_LOCAL_PORT)
-    t_total        = _get_doubleinfo(curl, CURLINFO_TOTAL_TIME)
-    t_connect      = _get_doubleinfo(curl, CURLINFO_CONNECT_TIME)
-    t_app          = _get_doubleinfo(curl, CURLINFO_APPCONNECT_TIME)
-    t_name         = _get_doubleinfo(curl, CURLINFO_NAMELOOKUP_TIME)
-
-    if ctx !== nothing && ctx.req_snapshot !== nothing
-        snap = ctx.req_snapshot
-        scheme = begin
-            m = match(r"^([a-zA-Z][a-zA-Z0-9+.-]*)://", snap.url)
-            isnothing(m) ? missing : m.captures[1]
-        end
-
-        println(io, "$(snap.method) $(snap.url)")
-        println(io, "protocol: ", scheme)
-        !isnothing(snap.proxy)     && println(io, "proxy: ", snap.proxy)
-        !isnothing(snap.interface) && println(io, "interface: ", snap.interface)
-        println(io, "connect_timeout=$(snap.connect_timeout)s read_timeout=$(snap.read_timeout)s")
-        !isnothing(snap.version)   && println(io, "requested_http_version: ", snap.version)
-        println(io, "headers:")
-        for (k,v) in _redact_headers(snap.headers)
-            println(io, "  $k: $v")
-        end
-        println(io, "body_len: ", snap.body_len)
-    else
-        println(io, "(no request snapshot)")
-    end
-
-    println(io, "\n=== Connection ===")
-    if !isnothing(local_ip) || !isnothing(primary_ip)
-        println(io, "local $(something(local_ip,"?\\")):$(something(local_port,"?\\")) remote $(something(primary_ip,"?\\")):$(something(primary_port,"?\\"))")
-    end
-    if !isnothing(effective_url)
-        println(io, "effective_url: ", effective_url)
-    end
-
-    println(io, "\n=== Timings (s) ===")
-    println(io, "namelookup=", t_name, " connect=", t_connect, " appconnect=", t_app, " total=", t_total)
-
-    return String(take!(io))
+    CurlDiagnostics(;
+        req           = (ctx === nothing ? nothing : ctx.req_snapshot),
+        effective_url = _get_strinfo(curl, CURLINFO_EFFECTIVE_URL),
+        primary_ip    = _get_strinfo(curl, CURLINFO_PRIMARY_IP),
+        local_ip      = _get_strinfo(curl, CURLINFO_LOCAL_IP),
+        primary_port  = _to_int(_get_longinfo(curl, CURLINFO_PRIMARY_PORT)),
+        local_port    = _to_int(_get_longinfo(curl, CURLINFO_LOCAL_PORT)),
+        t_total       = _to_float(_get_doubleinfo(curl, CURLINFO_TOTAL_TIME)),
+        t_connect     = _to_float(_get_doubleinfo(curl, CURLINFO_CONNECT_TIME)),
+        t_app         = _to_float(_get_doubleinfo(curl, CURLINFO_APPCONNECT_TIME)),
+        t_name        = _to_float(_get_doubleinfo(curl, CURLINFO_NAMELOOKUP_TIME)),
+    )
 end
 
 function write_callback(buf::Ptr{UInt8}, s::Csize_t, n::Csize_t, p_ctxt::Ptr{Cvoid})
