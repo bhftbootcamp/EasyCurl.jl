@@ -190,7 +190,7 @@ function imap_request(
             password,
             command,
             IMAPOptions(; options...),
-            CurlResponseContext(nothing),
+            CurlResponseContext(),
         )
         perform_request(client, req)
         return IMAPResponse(req.response_context)
