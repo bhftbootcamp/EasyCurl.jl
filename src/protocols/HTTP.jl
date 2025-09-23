@@ -78,7 +78,7 @@ curl_total_time(x::HTTPResponse) = http_total_time(x)
 curl_body(x::HTTPResponse) = http_body(x)
 
 function HTTPResponse(x::CurlResponseContext)
-    return HTTPResponse(x.status, x.version, x.total_time, take!(x.stream), x.headers,)
+    return HTTPResponse(x.status, x.version, x.total_time, take!(x.stream), x.headers)
 end
 
 # COV_EXCL_START
@@ -359,7 +359,6 @@ function perform_request(c::CurlClient, r::HTTPRequest)
     return nothing
 end
 
-
 """
     http_request(method::String, url::String; kw...) -> HTTPResponse
 
@@ -432,7 +431,7 @@ function http_request(
     retry::Int64 = 0,
     retry_delay::Real = 0.25,
     f::Union{Function,Nothing} = nothing,
-    options...,
+    options...
 )::HTTPResponse
     with_retry(retry, retry_delay) do
         req = HTTPRequest(
@@ -442,17 +441,17 @@ function http_request(
             Vector{UInt8}(body),
             HTTPOptions(; options...),
             C_NULL,
-            CurlResponseContext(; on_data=f),
+            CurlResponseContext(; on_data = f),
         )
         req.response_context.req_snapshot = ReqSnapshot(;
             method = req.method,
-            url    = req.url,
+            url = req.url,
             headers = copy(req.headers),
-            proxy   = req.options.proxy,
+            proxy = req.options.proxy,
             interface = req.options.interface,
-            version   = req.options.version,
+            version = req.options.version,
             connect_timeout = req.options.connect_timeout,
-            read_timeout    = req.options.read_timeout,
+            read_timeout = req.options.read_timeout,
             body_len = length(req.body)
         )
         try

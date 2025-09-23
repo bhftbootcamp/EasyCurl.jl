@@ -180,8 +180,8 @@ function imap_request(
     command = nothing,
     retry::Int64 = 0,
     retry_delay::Real = 0.25,
-    
-    options...,
+
+    options...
 )::IMAPResponse
     with_retry(retry, retry_delay) do
         req = IMAPRequest(

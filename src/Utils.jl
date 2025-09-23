@@ -67,8 +67,8 @@ function build_imap_url(
     path::Union{AbstractString,Nothing},
 )
     return url *
-           (isnothing(mailbox) ? "" : "/$mailbox") *
-           (isnothing(path) ? "" : ";$path")
+        (isnothing(mailbox) ? "" : "/$mailbox") *
+        (isnothing(path) ? "" : ";$path")
 end
 
 function split_header(x::AbstractString)
