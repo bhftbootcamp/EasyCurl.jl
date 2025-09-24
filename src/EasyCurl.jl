@@ -133,8 +133,8 @@ end
 function CurlDiagnostics(curl::CurlClient)
     ctx_ref = Ref{CurlResponseContext}()
     r = LibCURL.curl_easy_getinfo(curl.easy_handle, CURLINFO_PRIVATE, ctx_ref)
-    snapshot = (r == CURLE_OK) ? private_ref[].req_snapshot : nothing
-    return new(
+    snapshot = (r == CURLE_OK) ? ctx_ref[].req_snapshot : nothing
+    return CurlDiagnostics(
         snapshot,
         _get_strinfo(curl, CURLINFO_EFFECTIVE_URL),
         _get_strinfo(curl, CURLINFO_PRIMARY_IP),
