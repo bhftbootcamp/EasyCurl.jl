@@ -92,21 +92,21 @@ struct CurlDiagnostics
     time_name_lookup::Union{Nothing,Float64}
 end
 
-function CurlDiagnostics(; 
-    req::Union{Nothing,ReqSnapshot} = nothing,
-    effective_url::Union{Nothing,String} = nothing,
-    primary_ip::Union{Nothing,String} = nothing,
-    local_ip::Union{Nothing,String} = nothing,
-    primary_port::Union{Nothing,Int} = nothing,
-    local_port::Union{Nothing,Int} = nothing,
-    time_total::Union{Nothing,Float64} = nothing,
-    time_connect::Union{Nothing,Float64} = nothing,
-    time_app_connect::Union{Nothing,Float64} = nothing,
-    time_name_lookup::Union{Nothing,Float64} = nothing,
-)
-    return CurlDiagnostics(
-        req, effective_url, primary_ip, local_ip, primary_port, local_port,
-        time_total, time_connect, time_app_connect, time_name_lookup
+function CurlDiagnostics(curl::CurlClient)
+    ctx_ref = Ref{CurlResponseContext}()
+    r = LibCURL.curl_easy_getinfo(curl.easy_handle, CURLINFO_PRIVATE, ctx_ref)
+    snapshot = (r == CURLE_OK) ? private_ref[].req_snapshot : nothing
+    return new(
+        snapshot,
+        _get_strinfo(curl, CURLINFO_EFFECTIVE_URL),
+        _get_strinfo(curl, CURLINFO_PRIMARY_IP),
+        _get_strinfo(curl, CURLINFO_LOCAL_IP),
+        _get_typedinfo(Clong, curl, CURLINFO_PRIMARY_PORT),
+        _get_typedinfo(Clong, curl, CURLINFO_LOCAL_PORT),
+        _get_typedinfo(Cdouble, curl, CURLINFO_TOTAL_TIME),
+        _get_typedinfo(Cdouble, curl, CURLINFO_CONNECT_TIME),
+        _get_typedinfo(Cdouble, curl, CURLINFO_APPCONNECT_TIME),
+        _get_typedinfo(Cdouble, curl, CURLINFO_NAMELOOKUP_TIME)
     )
 end
 
@@ -239,13 +239,7 @@ struct CurlEasyError{code} <: AbstractCurlError
     function CurlEasyError(c::Integer, curl)
         msg = unsafe_string(LibCURL.curl_easy_strerror(UInt32(c)))
         buf = _errorbuffer_msg(curl.error_buffer)
-        ctx = nothing
-        private_ref = Ref{CurlResponseContext}()
-        r = LibCURL.curl_easy_getinfo(curl.easy_handle, CURLINFO_PRIVATE, private_ref)
-        if r == CURLE_OK
-            ctx = private_ref[]
-        end
-        diag = _diagnostics(curl, ctx)
+        diag = CurlDiagnostics(curl)
         return new{Int(c)}(Int(c), msg, buf, diag)
     end
 end
@@ -276,13 +270,7 @@ struct CurlMultiError{code} <: AbstractCurlError
     function CurlMultiError(c::Integer, curl)
         msg = unsafe_string(LibCURL.curl_multi_strerror(UInt32(c)))
         buf = _errorbuffer_msg(curl.error_buffer)
-        ctx = nothing
-        private_ref = Ref{CurlResponseContext}()
-        r = LibCURL.curl_easy_getinfo(curl.easy_handle, CURLINFO_PRIVATE, private_ref)
-        if r == CURLE_OK
-            ctx = private_ref[]
-        end
-        diag = _diagnostics(curl, ctx)
+        diag = CurlDiagnostics(curl)
         return new{Int(c)}(Int(c), msg, buf, diag)
     end
 end
@@ -519,21 +507,6 @@ end
     on_data::Union{Nothing,Function} = nothing
     error::Union{Nothing,Exception} = nothing
     req_snapshot::Union{Nothing,ReqSnapshot} = nothing
-end
-
-function _diagnostics(curl::CurlClient, ctx::Union{Nothing,CurlResponseContext})::CurlDiagnostics
-    CurlDiagnostics(;
-        req = ctx === nothing ? nothing : ctx.req_snapshot,
-        effective_url = _get_strinfo(curl, CURLINFO_EFFECTIVE_URL),
-        primary_ip = _get_strinfo(curl, CURLINFO_PRIMARY_IP),
-        local_ip = _get_strinfo(curl, CURLINFO_LOCAL_IP),
-        primary_port = _get_typedinfo(Clong, curl, CURLINFO_PRIMARY_PORT),
-        local_port = _get_typedinfo(Clong, curl, CURLINFO_LOCAL_PORT),
-        time_total = _get_typedinfo(Cdouble, curl, CURLINFO_TOTAL_TIME),
-        time_connect = _get_typedinfo(Cdouble, curl, CURLINFO_CONNECT_TIME),
-        time_app_connect = _get_typedinfo(Cdouble, curl, CURLINFO_APPCONNECT_TIME),
-        time_name_lookup = _get_typedinfo(Cdouble, curl, CURLINFO_NAMELOOKUP_TIME)
-    )
 end
 
 function write_callback(buf::Ptr{UInt8}, s::Csize_t, n::Csize_t, p_ctxt::Ptr{Cvoid})
