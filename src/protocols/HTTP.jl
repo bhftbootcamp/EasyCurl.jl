@@ -41,9 +41,14 @@ Maps CURL numerical constants for HTTP versions to their string representations.
 - `0x00000003` (`CURL_HTTP_VERSION_2_0`) - `"2.0"`: HTTP 2.0
 """
 const HTTP_VERSION_MAP = Dict{UInt64,String}(
+    CURL_HTTP_VERSION_NONE => "?.?",
     CURL_HTTP_VERSION_1_0 => "1.0",
     CURL_HTTP_VERSION_1_1 => "1.1",
     CURL_HTTP_VERSION_2_0 => "2.0",
+    CURL_HTTP_VERSION_2TLS => "2.0",
+    CURL_HTTP_VERSION_2_PRIOR_KNOWLEDGE => "2.0",
+    CURL_HTTP_VERSION_3 => "3",
+    CURL_HTTP_VERSION_3ONLY => "3",
 )
 
 """
@@ -85,7 +90,7 @@ end
 function Base.show(io::IO, x::HTTPResponse)
     println(io, HTTPResponse)
     println(io, "\"\"\"")
-    print(io, "HTTP/", Base.get(HTTP_VERSION_MAP, http_version(x), "1.1"))
+    print(io, "HTTP/", Base.get(HTTP_VERSION_MAP, http_version(x), "?.?"))
     println(io, " ", http_status(x), " ", Base.get(HTTP_STATUS_CODES, x.status, ""))
     for (k, v) in http_headers(x)
         println(io, "$k: '$v'")
