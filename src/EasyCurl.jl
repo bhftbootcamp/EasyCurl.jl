@@ -96,47 +96,107 @@ Base.@kwdef struct CurlDiagnostics
     t_name::Union{Nothing,Float64} = nothing
 end
 
+function _curlfmt_split_url(u::AbstractString)
+    m = match(r"^([a-zA-Z][a-zA-Z0-9+.-]*)://([^/ :]+)(?::(\d+))?(/.*)?$", u)
+    if isnothing(m)
+        return missing, missing, missing, u
+    end
+    scheme = m.captures[1]
+    host = m.captures[2]
+    port = m.captures[3] === nothing ? nothing : tryparse(Int, m.captures[3])
+    pathq = something(m.captures[4], "/")
+    return scheme, host, port, pathq
+end
+
+function _curlfmt_http_version(v)
+    v === nothing && return "?.?"
+    try
+        return Base.get(HTTP_VERSION_MAP, UInt64(v), "?.?")
+    catch
+        return "?.?"
+    end
+end
+
+_curlfmt_time(x) = x === nothing ? "?\\" : string(round(x, digits = 3))
+
+function _curlfmt_print_request_meta(io::IO, s::ReqSnapshot, scheme)
+    println(io, "* EasyCurl diagnostics")
+    println(io, "* URL: ", s.url)
+    println(io, "* Method: ", s.method)
+    !ismissing(scheme) && println(io, "* Protocol: ", scheme)
+    s.proxy !== nothing && println(io, "* Proxy: ", s.proxy)
+    s.interface !== nothing && println(io, "* Interface: ", s.interface)
+    println(io, "* Connect timeout: $(s.connect_timeout) s")
+    println(io, "* Read timeout: $(s.read_timeout) s")
+    s.version !== nothing && println(io, "* Requested HTTP version: ", s.version)
+end
+
+
+function _curlfmt_print_connect_preamble(io::IO, d::CurlDiagnostics, host)
+    if d.primary_ip !== nothing && d.primary_port !== nothing
+        println(io, "* Trying $(d.primary_ip):$(d.primary_port)...")
+    end
+    if host !== missing && d.primary_ip !== nothing && d.primary_port !== nothing
+        println(io, "* Connected to $(host) ($(d.primary_ip)) port $(d.primary_port) (#0)")
+    end
+end
+
+function _curlfmt_print_request(io::IO, s::ReqSnapshot, host, port, pathq)
+    httpver = _curlfmt_http_version(s.version)
+    path = pathq === missing ? "/" : pathq
+    println(io, "> ", s.method, " ", path, " HTTP/", httpver)
+    if host !== missing
+        if port === missing
+            println(io, "> Host: ", host)
+        else
+            println(io, "> Host: ", host, ":", port)
+        end
+    end
+    for (k, v) in _redact_headers(s.headers)
+        println(io, "> ", k, ": ", v)
+    end
+    println(io, ">")
+end
+
+function _curlfmt_print_body_len(io::IO, s::ReqSnapshot)
+    println(io, "* Body length: ", s.body_len)
+end
+
+function _curlfmt_print_endpoints(io::IO, d::CurlDiagnostics)
+    lip = d.local_ip === nothing ? "?\\" : d.local_ip
+    lport = d.local_port === nothing ? "?\\" : string(d.local_port)
+    rip = d.primary_ip === nothing ? "?\\" : d.primary_ip
+    rport = d.primary_port === nothing ? "?\\" : string(d.primary_port)
+
+    if d.local_ip !== nothing || d.primary_ip !== nothing
+        println(io, "* Local: ", lip, ":", lport)
+        println(io, "* Remote: ", rip, ":", rport)
+    end
+    d.effective_url !== nothing && println(io, "* Effective URL: ", d.effective_url)
+end
+
+function _curlfmt_print_timings(io::IO, d::CurlDiagnostics)
+    println(io, "* Namelookup: ", _curlfmt_time(d.t_name), " s")
+    println(io, "* Connect: ", _curlfmt_time(d.t_connect), " s")
+    println(io, "* AppConnect: ", _curlfmt_time(d.t_app), " s")
+    println(io, "* Total: ", _curlfmt_time(d.t_total), " s")
+end
+
 function Base.show(io::IO, d::CurlDiagnostics)
     if d.req !== nothing
-        snap = d.req::ReqSnapshot
-        scheme = begin
-            m = match(r"^([a-zA-Z][a-zA-Z0-9+.-]*)://", snap.url)
-            isnothing(m) ? missing : m.captures[1]
-        end
-        println(io, "$(snap.method) $(snap.url)")
-        println(io, "protocol: ", scheme)
-        !isnothing(snap.proxy) && println(io, "proxy: ", snap.proxy)
-        !isnothing(snap.interface) && println(io, "interface: ", snap.interface)
-        println(io, "connect_timeout=$(snap.connect_timeout)s read_timeout=$(snap.read_timeout)s")
-        !isnothing(snap.version) && println(io, "requested_http_version: ", snap.version)
-        println(io, "headers:")
-        for (k, v) in _redact_headers(snap.headers)
-            println(io, "  $k: $v")
-        end
-        println(io, "body_len: ", snap.body_len)
+        s = d.req::ReqSnapshot
+        scheme, host, port, pathq = _curlfmt_split_url(s.url)
+        _curlfmt_print_request_meta(io, s, scheme)
+        _curlfmt_print_connect_preamble(io, d, host)
+        _curlfmt_print_request(io, s, host, port, pathq)
+        _curlfmt_print_body_len(io, s)
     else
-        println(io, "(no request snapshot)")
+        println(io, "* EasyCurl diagnostics")
+        println(io, "* (no request snapshot)")
     end
-    println(io, "\n=== Connection ===")
-    local_ip = something(d.local_ip, nothing)
-    primary_ip = something(d.primary_ip, nothing)
-    if !isnothing(local_ip) || !isnothing(primary_ip)
-        lport = isnothing(d.local_port) ? "?\\" : string(d.local_port)
-        rport = isnothing(d.primary_port) ? "?\\" : string(d.primary_port)
-        lip = isnothing(local_ip) ? "?\\" : local_ip
-        rip = isnothing(primary_ip) ? "?\\" : primary_ip
-        println(io, "local $(lip):$(lport) remote $(rip):$(rport)")
-    end
-    if d.effective_url !== nothing
-        println(io, "effective_url: ", d.effective_url)
-    end
-    println(io, "\n=== Timings (s) ===")
-    println(io,
-        "namelookup=", something(d.t_name, "?\\"), " ",
-        "connect=", something(d.t_connect, "?\\"), " ",
-        "appconnect=", something(d.t_app, "?\\"), " ",
-        "total=", something(d.t_total, "?\\"))
 
+    _curlfmt_print_endpoints(io, d)
+    _curlfmt_print_timings(io, d)
     return nothing
 end
 
