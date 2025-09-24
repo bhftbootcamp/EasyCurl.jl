@@ -67,7 +67,7 @@ end
     return msg
 end
 
-@kwdef struct ReqSnapshot
+Base.@kwdef struct ReqSnapshot
     method::String
     url::String
     headers::Vector{Pair{String,String}}
@@ -498,7 +498,7 @@ function get_private_data(c::CurlClient, ::Type{T})::T where {T}
     # return unsafe_pointer_to_objref(ptr_ref[])::T
 end
 
-@kwdef mutable struct CurlResponseContext
+Base.@kwdef mutable struct CurlResponseContext
     status::Int = 0
     version::Int = 0
     total_time::Float64 = 0.0
