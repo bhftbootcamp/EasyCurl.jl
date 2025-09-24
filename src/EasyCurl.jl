@@ -79,17 +79,35 @@ end
     body_len::Int
 end
 
-Base.@kwdef struct CurlDiagnostics
-    req::Union{Nothing,ReqSnapshot} = nothing
-    effective_url::Union{Nothing,String} = nothing
-    primary_ip::Union{Nothing,String} = nothing
-    local_ip::Union{Nothing,String} = nothing
-    primary_port::Union{Nothing,Int} = nothing
-    local_port::Union{Nothing,Int} = nothing
-    t_total::Union{Nothing,Float64} = nothing
-    t_connect::Union{Nothing,Float64} = nothing
-    t_app::Union{Nothing,Float64} = nothing
-    t_name::Union{Nothing,Float64} = nothing
+struct CurlDiagnostics
+    req::Union{Nothing,ReqSnapshot}
+    effective_url::Union{Nothing,String}
+    primary_ip::Union{Nothing,String}
+    local_ip::Union{Nothing,String}
+    primary_port::Union{Nothing,Int}
+    local_port::Union{Nothing,Int}
+    time_total::Union{Nothing,Float64}
+    time_connect::Union{Nothing,Float64}
+    time_app_connect::Union{Nothing,Float64}
+    time_name_lookup::Union{Nothing,Float64}
+end
+
+function CurlDiagnostics(; 
+    req::Union{Nothing,ReqSnapshot} = nothing,
+    effective_url::Union{Nothing,String} = nothing,
+    primary_ip::Union{Nothing,String} = nothing,
+    local_ip::Union{Nothing,String} = nothing,
+    primary_port::Union{Nothing,Int} = nothing,
+    local_port::Union{Nothing,Int} = nothing,
+    time_total::Union{Nothing,Float64} = nothing,
+    time_connect::Union{Nothing,Float64} = nothing,
+    time_app_connect::Union{Nothing,Float64} = nothing,
+    time_name_lookup::Union{Nothing,Float64} = nothing,
+)
+    return CurlDiagnostics(
+        req, effective_url, primary_ip, local_ip, primary_port, local_port,
+        time_total, time_connect, time_app_connect, time_name_lookup
+    )
 end
 
 function _curlfmt_split_url(u::AbstractString)
@@ -171,10 +189,10 @@ function _curlfmt_print_endpoints(io::IO, d::CurlDiagnostics)
 end
 
 function _curlfmt_print_timings(io::IO, d::CurlDiagnostics)
-    println(io, "* Namelookup: ", _curlfmt_time(d.t_name), " s")
-    println(io, "* Connect: ", _curlfmt_time(d.t_connect), " s")
-    println(io, "* AppConnect: ", _curlfmt_time(d.t_app), " s")
-    println(io, "* Total: ", _curlfmt_time(d.t_total), " s")
+    println(io, "* Namelookup: ", _curlfmt_time(d.time_name_lookup), " s")
+    println(io, "* Connect: ", _curlfmt_time(d.time_connect), " s")
+    println(io, "* AppConnect: ", _curlfmt_time(d.time_app_connect), " s")
+    println(io, "* Total: ", _curlfmt_time(d.time_total), " s")
 end
 
 function Base.show(io::IO, d::CurlDiagnostics)
@@ -509,12 +527,12 @@ function _diagnostics(curl::CurlClient, ctx::Union{Nothing,CurlResponseContext})
         effective_url = _get_strinfo(curl, CURLINFO_EFFECTIVE_URL),
         primary_ip = _get_strinfo(curl, CURLINFO_PRIMARY_IP),
         local_ip = _get_strinfo(curl, CURLINFO_LOCAL_IP),
-        primary_port = _get_typedinfo(Clong, curl, CURLINFO_PRIMARY_PORT),
-        local_port = _get_typedinfo(Clong, curl, CURLINFO_LOCAL_PORT),
-        t_total = _get_typedinfo(Cdouble, curl, CURLINFO_TOTAL_TIME),
-        t_connect = _get_typedinfo(Cdouble, curl, CURLINFO_CONNECT_TIME),
-        t_app = _get_typedinfo(Cdouble, curl, CURLINFO_APPCONNECT_TIME),
-        t_name = _get_typedinfo(Cdouble, curl, CURLINFO_NAMELOOKUP_TIME),
+        primary_port = _get_typed_info(Clong, curl, CURLINFO_PRIMARY_PORT),
+        local_port = _get_typed_info(Clong, curl, CURLINFO_LOCAL_PORT),
+        time_total = _get_typed_info(Cdouble, curl, CURLINFO_TOTAL_TIME),
+        time_connect = _get_typed_info(Cdouble, curl, CURLINFO_CONNECT_TIME),
+        time_app_connect = _get_typed_info(Cdouble, curl, CURLINFO_APPCONNECT_TIME),
+        time_name_lookup = _get_typed_info(Cdouble, curl, CURLINFO_NAMELOOKUP_TIME)
     )
 end
 
