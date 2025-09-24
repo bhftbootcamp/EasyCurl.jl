@@ -136,7 +136,7 @@ function _curlfmt_print_connect_preamble(io::IO, d::CurlDiagnostics, host)
     if d.primary_ip !== nothing && d.primary_port !== nothing
         println(io, "* Trying $(d.primary_ip):$(d.primary_port)...")
     end
-    if host !== missing && d.primary_ip !== nothing && d.primary_port !== nothing
+    if host !== missing && d.primary_ip !== nothing && d.primary_port !== nothing && !isempty(d.primary_ip) && d.primary_port != 0
         println(io, "* Connected to $(host) ($(d.primary_ip)) port $(d.primary_port) (#0)")
     end
 end
