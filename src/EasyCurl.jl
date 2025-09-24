@@ -92,6 +92,44 @@ struct CurlDiagnostics
     time_name_lookup::Union{Nothing,Float64}
 end
 
+"""
+    CurlClient
+
+Represents a client for making HTTP requests using libcurl. Allows for connection reuse.
+
+## Fields
+- `easy_handle::Ptr{Cvoid}`: The libcurl easy handle.
+- `multi_handle::Ptr{Cvoid}`: The libcurl multi handle.
+"""
+mutable struct CurlClient
+    easy_handle::Ptr{Cvoid}
+    multi_handle::Ptr{Cvoid}
+    error_buffer::Vector{UInt8}
+
+    function CurlClient()
+        easy_handle = LibCURL.curl_easy_init()
+        easy_handle != C_NULL || begin
+            throw(ArgumentError("curl_easy_init failed"))
+        end
+        multi_handle = LibCURL.curl_multi_init()
+        multi_handle != C_NULL || begin
+            LibCURL.curl_easy_cleanup(easy_handle)
+            throw(ArgumentError("curl_multi_init failed"))
+        end
+        buf = zeros(UInt8, LibCURL.CURL_ERROR_SIZE)
+        r = LibCURL.curl_easy_setopt(easy_handle, CURLOPT_ERRORBUFFER, pointer(buf))
+        r == CURLE_OK || begin
+            LibCURL.curl_multi_cleanup(multi_handle)
+            LibCURL.curl_easy_cleanup(easy_handle)
+            throw(ArgumentError("failed to set CURLOPT_ERRORBUFFER"))
+        end
+
+        c = new(easy_handle, multi_handle, buf)
+        finalizer(close, c)
+        return c
+    end
+end
+
 function CurlDiagnostics(curl::CurlClient)
     ctx_ref = Ref{CurlResponseContext}()
     r = LibCURL.curl_easy_getinfo(curl.easy_handle, CURLINFO_PRIVATE, ctx_ref)
@@ -272,44 +310,6 @@ struct CurlMultiError{code} <: AbstractCurlError
         buf = _errorbuffer_msg(curl.error_buffer)
         diag = CurlDiagnostics(curl)
         return new{Int(c)}(Int(c), msg, buf, diag)
-    end
-end
-
-"""
-    CurlClient
-
-Represents a client for making HTTP requests using libcurl. Allows for connection reuse.
-
-## Fields
-- `easy_handle::Ptr{Cvoid}`: The libcurl easy handle.
-- `multi_handle::Ptr{Cvoid}`: The libcurl multi handle.
-"""
-mutable struct CurlClient
-    easy_handle::Ptr{Cvoid}
-    multi_handle::Ptr{Cvoid}
-    error_buffer::Vector{UInt8}
-
-    function CurlClient()
-        easy_handle = LibCURL.curl_easy_init()
-        easy_handle != C_NULL || begin
-            throw(ArgumentError("curl_easy_init failed"))
-        end
-        multi_handle = LibCURL.curl_multi_init()
-        multi_handle != C_NULL || begin
-            LibCURL.curl_easy_cleanup(easy_handle)
-            throw(ArgumentError("curl_multi_init failed"))
-        end
-        buf = zeros(UInt8, LibCURL.CURL_ERROR_SIZE)
-        r = LibCURL.curl_easy_setopt(easy_handle, CURLOPT_ERRORBUFFER, pointer(buf))
-        r == CURLE_OK || begin
-            LibCURL.curl_multi_cleanup(multi_handle)
-            LibCURL.curl_easy_cleanup(easy_handle)
-            throw(ArgumentError("failed to set CURLOPT_ERRORBUFFER"))
-        end
-
-        c = new(easy_handle, multi_handle, buf)
-        finalizer(close, c)
-        return c
     end
 end
 
