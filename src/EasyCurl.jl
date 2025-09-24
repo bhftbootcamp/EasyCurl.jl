@@ -527,12 +527,12 @@ function _diagnostics(curl::CurlClient, ctx::Union{Nothing,CurlResponseContext})
         effective_url = _get_strinfo(curl, CURLINFO_EFFECTIVE_URL),
         primary_ip = _get_strinfo(curl, CURLINFO_PRIMARY_IP),
         local_ip = _get_strinfo(curl, CURLINFO_LOCAL_IP),
-        primary_port = _get_typed_info(Clong, curl, CURLINFO_PRIMARY_PORT),
-        local_port = _get_typed_info(Clong, curl, CURLINFO_LOCAL_PORT),
-        time_total = _get_typed_info(Cdouble, curl, CURLINFO_TOTAL_TIME),
-        time_connect = _get_typed_info(Cdouble, curl, CURLINFO_CONNECT_TIME),
-        time_app_connect = _get_typed_info(Cdouble, curl, CURLINFO_APPCONNECT_TIME),
-        time_name_lookup = _get_typed_info(Cdouble, curl, CURLINFO_NAMELOOKUP_TIME)
+        primary_port = _get_typedinfo(Clong, curl, CURLINFO_PRIMARY_PORT),
+        local_port = _get_typedinfo(Clong, curl, CURLINFO_LOCAL_PORT),
+        time_total = _get_typedinfo(Cdouble, curl, CURLINFO_TOTAL_TIME),
+        time_connect = _get_typedinfo(Cdouble, curl, CURLINFO_CONNECT_TIME),
+        time_app_connect = _get_typedinfo(Cdouble, curl, CURLINFO_APPCONNECT_TIME),
+        time_name_lookup = _get_typedinfo(Cdouble, curl, CURLINFO_NAMELOOKUP_TIME)
     )
 end
 
