@@ -48,15 +48,12 @@ abstract type AbstractCurlError <: Exception end
 
 # COV_EXCL_START
 function Base.showerror(io::IO, e::AbstractCurlError)
-    msg = (hasfield(typeof(e), :libcurl_message) && !isempty(getfield(e, :libcurl_message))) ? getfield(e, :libcurl_message) : getfield(e, :message)
+    msg = !isempty(getfield(e, :libcurl_message)) ? getfield(e, :libcurl_message) : getfield(e, :message)
     print(io, nameof(typeof(e)), "{", getfield(e, :code), "}: ", msg)
-
-    if hasfield(typeof(e), :diagnostics)
-        d = getfield(e, :diagnostics)
-        if d !== nothing
-            print(io, '\n')
-            show(io, d)
-        end
+    d = getfield(e, :diagnostics)
+    if d !== nothing
+        print(io, '\n')
+        show(io, d)
     end
 end
 # COV_EXCL_STOP
@@ -99,7 +96,7 @@ end
 function _curlfmt_split_url(u::AbstractString)
     m = match(r"^([a-zA-Z][a-zA-Z0-9+.-]*)://([^/ :]+)(?::(\d+))?(/.*)?$", u)
     if isnothing(m)
-        return missing, missing, missing, u
+        return nothing, nothing, nothing, u
     end
     scheme = m.captures[1]
     host = m.captures[2]
@@ -123,7 +120,7 @@ function _curlfmt_print_request_meta(io::IO, s::ReqSnapshot, scheme)
     println(io, "* EasyCurl diagnostics")
     println(io, "* URL: ", s.url)
     println(io, "* Method: ", s.method)
-    !ismissing(scheme) && println(io, "* Protocol: ", scheme)
+    !isnothing(scheme) && println(io, "* Protocol: ", scheme)
     s.proxy !== nothing && println(io, "* Proxy: ", s.proxy)
     s.interface !== nothing && println(io, "* Interface: ", s.interface)
     println(io, "* Connect timeout: $(s.connect_timeout) s")
@@ -131,22 +128,21 @@ function _curlfmt_print_request_meta(io::IO, s::ReqSnapshot, scheme)
     s.version !== nothing && println(io, "* Requested HTTP version: ", s.version)
 end
 
-
 function _curlfmt_print_connect_preamble(io::IO, d::CurlDiagnostics, host)
     if d.primary_ip !== nothing && d.primary_port !== nothing
         println(io, "* Trying $(d.primary_ip):$(d.primary_port)...")
     end
-    if host !== missing && d.primary_ip !== nothing && d.primary_port !== nothing && !isempty(d.primary_ip) && d.primary_port != 0
+    if host !== nothing && d.primary_ip !== nothing && d.primary_port !== nothing && !isempty(d.primary_ip) && d.primary_port != 0
         println(io, "* Connected to $(host) ($(d.primary_ip)) port $(d.primary_port) (#0)")
     end
 end
 
 function _curlfmt_print_request(io::IO, s::ReqSnapshot, host, port, pathq)
     httpver = _curlfmt_http_version(s.version)
-    path = pathq === missing ? "/" : pathq
+    path = pathq === nothing ? "/" : pathq
     println(io, "> ", s.method, " ", path, " HTTP/", httpver)
-    if host !== missing
-        if port === missing
+    if host !== nothing
+        if port === nothing
             println(io, "> Host: ", host)
         else
             println(io, "> Host: ", host, ":", port)
