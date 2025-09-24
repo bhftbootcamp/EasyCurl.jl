@@ -315,15 +315,8 @@ end
     return p == C_NULL ? nothing : unsafe_string(p)
 end
 
-@inline function _get_longinfo(c::CurlClient, info::CURLINFO)
-    r = Ref{Clong}()
-    r_code = LibCURL.curl_easy_getinfo(c.easy_handle, info, r)
-    r_code == CURLE_OK && return r[]
-    return nothing
-end
-
-@inline function _get_doubleinfo(c::CurlClient, info::CURLINFO)
-    r = Ref{Cdouble}()
+@inline function _get_typedinfo(::Type{T}, c::CurlClient, info::CURLINFO) where {T}
+    r = Ref{T}()
     r_code = LibCURL.curl_easy_getinfo(c.easy_handle, info, r)
     r_code == CURLE_OK && return r[]
     return nothing
@@ -511,20 +504,17 @@ end
 end
 
 function _diagnostics(curl::CurlClient, ctx::Union{Nothing,CurlResponseContext})::CurlDiagnostics
-    _to_int(x) = x === nothing ? nothing : Int(x)
-    _to_float(x) = x === nothing ? nothing : Float64(x)
-
     CurlDiagnostics(;
         req = ctx === nothing ? nothing : ctx.req_snapshot,
         effective_url = _get_strinfo(curl, CURLINFO_EFFECTIVE_URL),
         primary_ip = _get_strinfo(curl, CURLINFO_PRIMARY_IP),
         local_ip = _get_strinfo(curl, CURLINFO_LOCAL_IP),
-        primary_port = _to_int(_get_longinfo(curl, CURLINFO_PRIMARY_PORT)),
-        local_port = _to_int(_get_longinfo(curl, CURLINFO_LOCAL_PORT)),
-        t_total = _to_float(_get_doubleinfo(curl, CURLINFO_TOTAL_TIME)),
-        t_connect = _to_float(_get_doubleinfo(curl, CURLINFO_CONNECT_TIME)),
-        t_app = _to_float(_get_doubleinfo(curl, CURLINFO_APPCONNECT_TIME)),
-        t_name = _to_float(_get_doubleinfo(curl, CURLINFO_NAMELOOKUP_TIME)),
+        primary_port = _get_typedinfo(Clong, curl, CURLINFO_PRIMARY_PORT),
+        local_port = _get_typedinfo(Clong, curl, CURLINFO_LOCAL_PORT),
+        t_total = _get_typedinfo(Cdouble, curl, CURLINFO_TOTAL_TIME),
+        t_connect = _get_typedinfo(Cdouble, curl, CURLINFO_CONNECT_TIME),
+        t_app = _get_typedinfo(Cdouble, curl, CURLINFO_APPCONNECT_TIME),
+        t_name = _get_typedinfo(Cdouble, curl, CURLINFO_NAMELOOKUP_TIME),
     )
 end
 
