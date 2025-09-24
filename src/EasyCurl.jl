@@ -48,12 +48,11 @@ abstract type AbstractCurlError <: Exception end
 
 # COV_EXCL_START
 function Base.showerror(io::IO, e::AbstractCurlError)
-    msg = !isempty(getfield(e, :libcurl_message)) ? getfield(e, :libcurl_message) : getfield(e, :message)
-    print(io, nameof(typeof(e)), "{", getfield(e, :code), "}: ", msg)
-    d = getfield(e, :diagnostics)
-    if d !== nothing
+    msg = !isempty(e.libcurl_message) ? e.libcurl_message : e.message
+    print(io, nameof(typeof(e)), "{", e.code, "}: ", msg)
+    if e.diagnostics !== nothing
         print(io, '\n')
-        show(io, d)
+        show(io, e.diagnostics)
     end
 end
 # COV_EXCL_STOP
