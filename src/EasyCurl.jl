@@ -303,7 +303,7 @@ struct CurlMultiError{code} <: AbstractCurlError
     code::Int
     message::String
     libcurl_message::String
-    diagnostics::Union{CurlDiagnostics,Nothing}
+    diagnostics::CurlDiagnostics
 
     function CurlMultiError(c::Integer, curl)
         msg = unsafe_string(LibCURL.curl_multi_strerror(UInt32(c)))
