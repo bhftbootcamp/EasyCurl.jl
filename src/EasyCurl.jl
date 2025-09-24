@@ -259,7 +259,7 @@ Represents an error from a libcurl easy interface call.
 ## Fields
 - `code::Int`: The libcurl error code.
 - `message::String`: The corresponding error message from libcurl.
-- `diagnostics::Union{CurlDiagnostics,Nothing}`: diagnostic message, that will contain virtually all context info if available
+- `diagnostics::CurlDiagnostics`: diagnostic struct, that will contain virtually all context info if available
 
 ## Examples
 
