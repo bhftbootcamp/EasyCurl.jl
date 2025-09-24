@@ -208,7 +208,7 @@ Represents an error from a libcurl easy interface call.
 ## Fields
 - `code::Int`: The libcurl error code.
 - `message::String`: The corresponding error message from libcurl.
-- `diagnostic_message::String`: diagnostic message, that will contain virtually all context info
+- `diagnostics::Union{CurlDiagnostics,Nothing}`: diagnostic message, that will contain virtually all context info if available
 
 ## Examples
 
@@ -245,7 +245,7 @@ Represents an error from a libcurl multi interface call.
 ## Fields
 - `code::Int`: The libcurl multi error code.
 - `message::String`: The corresponding error message from libcurl.
-- `diagnostic_message::String`: diagnostic message, that will contain virtually all context info
+- `diagnostics::Union{CurlDiagnostics,Nothing}`: diagnostic message, that will contain virtually all context info if available
 
 ## Examples
 
