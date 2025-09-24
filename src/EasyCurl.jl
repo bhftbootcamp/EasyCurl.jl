@@ -272,7 +272,7 @@ struct CurlEasyError{code} <: AbstractCurlError
     code::Int
     message::String
     libcurl_message::String
-    diagnostics::Union{CurlDiagnostics,Nothing}
+    diagnostics::CurlDiagnostics
 
     function CurlEasyError(c::Integer, curl)
         msg = unsafe_string(LibCURL.curl_easy_strerror(UInt32(c)))
