@@ -178,26 +178,39 @@ end
 end
 
 @testset "Stream" begin
-    chunks = Vector{UInt8}[]
-    response = http_open("GET", joinpath(HTTPBIN_URL, "stream/3"), query = query) do stream
-        while !eof(stream)
-            push!(chunks, read(stream, 280))
+    @testset "Chunks reading" begin
+        chunks = AbstractString[]
+        response = http_open("GET", joinpath(HTTPBIN_URL, "stream/3"), query = query) do stream
+            push!(chunks, readline(stream))
+        end
+        @test http_status(response) == 200
+        for chunk in chunks
+            body = parse_json(chunk)
+            @test body["args"] == query
+            @test body["url"] == joinpath(HTTPBIN_URL, "stream/3?echo=你好嗎")
         end
     end
-    @test http_status(response) == 200
-    for chunk in chunks
-        body = parse_json(chunk)
-        @test body["args"] == query
-        @test body["url"] == joinpath(HTTPBIN_URL, "stream/3?echo=你好嗎")
+
+    @testset "Echo via stream" begin
+        body = UInt8[]
+        response = http_open("GET", joinpath(HTTPBIN_URL, "get"), query = query) do stream
+            append!(body, read(stream))
+        end
+        @test http_status(response) == 200
+        body_dict = parse_json(body)
+        @test body_dict["args"] == query
+        @test body_dict["url"] == joinpath(HTTPBIN_URL, "get?echo=你好嗎")
     end
 
-    body = UInt8[]
-    response = http_open("GET", joinpath(HTTPBIN_URL, "get"), query = query) do stream
-        append!(body, read(stream))
+    @testset "Interrupted stream" begin
+        chunks = AbstractString[]
+        response = http_open("GET", joinpath(HTTPBIN_URL, "stream/5"), query = query) do stream
+            push!(chunks, readline(stream))
+            close(stream)
+        end
+        @test http_status(response) == 200
+        @test length(chunks) == 1
     end
-    body_dict = parse_json(body)
-    @test body_dict["args"] == query
-    @test body_dict["url"] == joinpath(HTTPBIN_URL, "get?echo=你好嗎")
 end
 
 @testset "Client reusing" begin

@@ -464,6 +464,9 @@ function curl_multi_perform(c::CurlClient)
         m = unsafe_load(convert(Ptr{CurlMsg}, p))
         if m.msg == CURLMSG_DONE
             if m.code != CURLE_OK
+                if m.code == CURLE_WRITE_ERROR && r_ctx !== nothing && !isopen(r_ctx.stream)
+                    return
+                end
                 throw(CurlEasyError(m.code, c))
             end
         end
@@ -519,6 +522,7 @@ function write_callback(buf::Ptr{UInt8}, s::Csize_t, n::Csize_t, p_ctxt::Ptr{Cvo
         Base.unsafe_write(r_ctx.stream, buf, sz)
         flush(r_ctx.stream)
         isnothing(r_ctx.on_data) || r_ctx.on_data(r_ctx.stream)
+        isopen(r_ctx.stream) || return UInt64(0)
     catch e
         r_ctx.error = e
     end

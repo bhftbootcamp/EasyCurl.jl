@@ -79,7 +79,7 @@ curl_total_time(x::HTTPResponse) = http_total_time(x)
 curl_body(x::HTTPResponse) = http_body(x)
 
 function HTTPResponse(x::CurlResponseContext)
-    return HTTPResponse(x.status, x.version, x.total_time, take!(x.stream), x.headers)
+    return HTTPResponse(x.status, x.version, x.total_time, isopen(x.stream) ? take!(x.stream) : UInt8[], x.headers)
 end
 
 # COV_EXCL_START
@@ -473,9 +473,12 @@ function http_request(method::AbstractString, x...; kw...)
 end
 
 """
-    http_open(f::Function, method::AbstractString, x...; kw...) -> HTTPResponse
+    http_open(f::Function, method::AbstractString, x...; kw...) -> IOBuffer
+    http_open(f::Function, client::CurlClient, method::AbstractString, x...; kw...) -> IOBuffer
 
 Send an HTTP request to `url` using as `method` one of `"GET"`, `"POST"`, etc. and process the response `stream::IOBuffer` using the function `f`.
+
+Stream processing can be interrupted at any time by calling `close(stream)` inside the handler.
 
 Keyword arguments `kw` is the same as in [`http_request`](@ref).
 
@@ -486,10 +489,16 @@ response = http_open("GET", "http://httpbin.org/stream/10") do stream
 end
 ```
 """
+function http_open end
+
 function http_open(f::Function, method::AbstractString, x...; kw...)
     return curl_session(
         c -> http_request(c, method, x...; f = f, kw...)
     )
+end
+
+function http_open(f::Function, client::CurlClient, method::AbstractString, x...; kw...)
+    http_request(client, method, x...; f = f, kw...)
 end
 
 """
