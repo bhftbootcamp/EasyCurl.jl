@@ -229,6 +229,17 @@ end
     @test body["args"] == query
     @test body["url"] == joinpath(HTTPBIN_URL, "post")*"?echo=你好嗎"
 
+    chunks = AbstractString[]
+    response = http_open(client, "GET", joinpath(HTTPBIN_URL, "stream/3"), query = query) do stream
+        push!(chunks, readline(stream))
+    end
+    @test http_status(response) == 200
+    for chunk in chunks
+        body = parse_json(chunk)
+        @test body["args"] == query
+        @test body["url"] == joinpath(HTTPBIN_URL, "stream/3?echo=你好嗎")
+    end
+
     close(client)
     @test !isopen(client)
 end
