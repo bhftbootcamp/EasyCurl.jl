@@ -40,7 +40,7 @@ jobs:
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
-      - uses: julia-actions/cache@v2
+      - uses: julia-actions/cache@v3
       - name: Start local httpbin
         run: docker run -d -p 80:80 --name httpbin kennethreitz/httpbin
       - name: Wait for httpbin to be ready
@@ -74,7 +74,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: julia-actions/setup-julia@latest
-      - uses: julia-actions/cache@v2
+      - uses: julia-actions/cache@v3
       - name: Install dependencies
         run: julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(; path = pwd())); Pkg.instantiate();'
       - name: Build and deploy
