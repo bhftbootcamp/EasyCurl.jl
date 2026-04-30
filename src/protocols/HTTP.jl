@@ -44,7 +44,7 @@ const HTTP_VERSION_MAP = Dict{UInt64,String}(
     CURL_HTTP_VERSION_1_1 => "1.1",
     CURL_HTTP_VERSION_2_0 => "2.0",
     CURL_HTTP_VERSION_2TLS => "2.0",
-    CURL_HTTP_VERSION_2_PRIOR_KNOWLEDGE => "2.0"
+    CURL_HTTP_VERSION_2_PRIOR_KNOWLEDGE => "2.0",
 )
 
 """
@@ -453,7 +453,7 @@ function http_request(
             version = req.options.version,
             connect_timeout = req.options.connect_timeout,
             read_timeout = req.options.read_timeout,
-            body_len = length(req.body)
+            body_len = length(req.body),
         )
         try
             perform_request(client, req)
