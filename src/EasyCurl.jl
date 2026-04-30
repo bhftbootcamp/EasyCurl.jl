@@ -144,7 +144,7 @@ function CurlDiagnostics(curl::CurlClient)
         _get_typedinfo(Cdouble, curl, CURLINFO_TOTAL_TIME),
         _get_typedinfo(Cdouble, curl, CURLINFO_CONNECT_TIME),
         _get_typedinfo(Cdouble, curl, CURLINFO_APPCONNECT_TIME),
-        _get_typedinfo(Cdouble, curl, CURLINFO_NAMELOOKUP_TIME)
+        _get_typedinfo(Cdouble, curl, CURLINFO_NAMELOOKUP_TIME),
     )
 end
 
